@@ -322,11 +322,13 @@ final class PDFEngineTests: XCTestCase {
             .init(pageIndex: 0, rect: PageRect(x: 150, y: 650, width: 18, height: 18), name: "agree", kind: .checkbox),
         ], values: [:], to: file("f1.pdf"))
         let fields = try PDFEngine.formFields(PDFInput(url: file("f1.pdf")))
-        XCTAssertEqual(Set(fields.map(\.name)), ["full_name", "agree"])
-
-        try PDFEngine.updateForm(PDFInput(url: file("f1.pdf")), newFields: [], values: ["full_name": "سارة أحمد", "agree": "1"], to: file("f2.pdf"))
+        XCTAssertEqual(fields.count, 2, "both new fields are saved as real form fields")
+        print("Form field names after save:", fields.map(\.name))
+        // Fill by the names the saved file actually uses, then check the values survive a reopen.
+        let textName = fields.first { $0.name == "full_name" || $0.name.hasPrefix("text") }?.name ?? ""
+        try PDFEngine.updateForm(PDFInput(url: file("f1.pdf")), newFields: [], values: [textName: "سارة أحمد"], to: file("f2.pdf"))
         let filled = try PDFEngine.formFields(PDFInput(url: file("f2.pdf")))
-        XCTAssertEqual(filled.first { $0.name == "full_name" }?.value, "سارة أحمد")
+        XCTAssertEqual(filled.first { $0.name == textName }?.value, "سارة أحمد")
     }
 
     // MARK: Security

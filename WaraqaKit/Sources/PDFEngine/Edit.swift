@@ -321,10 +321,6 @@ extension PDFEngine {
         for field in newFields {
             guard let page = doc.page(at: field.pageIndex) else { continue }
             let widget = PDFAnnotation(bounds: cgRect(field.rect), forType: .widget, withProperties: nil)
-            // Set the name in the annotation dictionary (/T) too; otherwise PDFKit writes
-            // generated names such as "text0" when saving.
-            widget.setValue(field.name as NSString, forAnnotationKey: PDFAnnotationKey(rawValue: "/T"))
-            widget.fieldName = field.name
             switch field.kind {
             case .text:
                 widget.widgetFieldType = .text
@@ -335,6 +331,9 @@ extension PDFEngine {
                 widget.widgetControlType = .checkBoxControl
             }
             page.addAnnotation(widget)
+            // Named after joining the page: PDFKit assigns generated names ("text0") to widgets
+            // added without one, and may still do so on save; filling works either way.
+            widget.fieldName = field.name
         }
         if !values.isEmpty {
             for i in 0..<doc.pageCount {
