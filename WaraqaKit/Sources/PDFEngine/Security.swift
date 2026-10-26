@@ -14,8 +14,15 @@ extension PDFEngine {
         guard !userPassword.isEmpty else { throw WaraqaError.missingOptions }
         let doc = try open(input.url, password: input.password)
         let plain = try copyPages(of: doc, indices: Array(0..<doc.pageCount))
-        let owner = ownerPassword?.isEmpty == false ? ownerPassword! : UUID().uuidString + UUID().uuidString
-        try write(plain, to: output, options: [.userPasswordOption: userPassword, .ownerPasswordOption: owner])
+        // PDF passwords are limited to 32 bytes; a random 32-character owner password.
+        let owner = ownerPassword?.isEmpty == false ? ownerPassword! : UUID().uuidString.replacingOccurrences(of: "-", with: "")
+        guard userPassword.utf8.count <= 32 else { throw WaraqaError.passwordUnsupported }
+        do {
+            try write(plain, to: output, options: [.userPasswordOption: userPassword, .ownerPasswordOption: owner])
+        } catch WaraqaError.writeFailed where !userPassword.allSatisfy(\.isASCII) {
+            // The PDF standard security handler can't encode some characters (e.g. Arabic letters).
+            throw WaraqaError.passwordUnsupported
+        }
         // Verify: it must not open without the password and must open with it.
         guard let check = PDFDocument(url: output), check.isEncrypted, check.isLocked else {
             throw WaraqaError.outputValidationFailed

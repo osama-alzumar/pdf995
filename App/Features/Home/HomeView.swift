@@ -164,6 +164,7 @@ struct HomeView: View {
                         Text("\(tools.count)").font(.footnote.monospacedDigit()).foregroundStyle(Theme.secondaryText)
                     }
                 }
+                .tint(Theme.secondaryText) // calm chevron and label instead of link-blue
                 .padding(14)
                 .card()
             }

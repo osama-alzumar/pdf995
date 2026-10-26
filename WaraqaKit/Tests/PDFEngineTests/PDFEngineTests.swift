@@ -335,7 +335,7 @@ final class PDFEngineTests: XCTestCase {
         let src = file("doc.pdf")
         Fixtures.simplePDF(["Private data"], at: src)
         let locked = file("locked.pdf")
-        try PDFEngine.protect(PDFInput(url: src), userPassword: "كلمة123", to: locked)
+        try PDFEngine.protect(PDFInput(url: src), userPassword: "Waraqa#2026", to: locked)
         XCTAssertTrue(PDFDocument(url: locked)!.isLocked)
         XCTAssertTrue(PDFEngine.isPasswordProtected(locked))
 
@@ -345,13 +345,25 @@ final class PDFEngineTests: XCTestCase {
         XCTAssertThrowsError(try PDFEngine.unlock(PDFInput(url: locked), to: file("u.pdf"))) {
             XCTAssertEqual($0 as? WaraqaError, .passwordRequired)
         }
-        try PDFEngine.unlock(PDFInput(url: locked, password: "كلمة123"), to: file("u.pdf"))
+        try PDFEngine.unlock(PDFInput(url: locked, password: "Waraqa#2026"), to: file("u.pdf"))
         let open = PDFDocument(url: file("u.pdf"))!
         XCTAssertFalse(open.isEncrypted)
         XCTAssertTrue(open.page(at: 0)!.string!.contains("Private data"))
 
         XCTAssertThrowsError(try PDFEngine.unlock(PDFInput(url: src), to: file("x.pdf"))) {
             XCTAssertEqual($0 as? WaraqaError, .notEncrypted)
+        }
+        // Arabic passwords: either they work end to end, or the user gets a clear message.
+        do {
+            try PDFEngine.protect(PDFInput(url: src), userPassword: "كلمة123", to: file("ar.pdf"))
+            try PDFEngine.unlock(PDFInput(url: file("ar.pdf"), password: "كلمة123"), to: file("ar-open.pdf"))
+            print("Arabic password: supported")
+        } catch {
+            XCTAssertEqual(error as? WaraqaError, .passwordUnsupported)
+            print("Arabic password: not supported, clear message shown")
+        }
+        XCTAssertThrowsError(try PDFEngine.protect(PDFInput(url: src), userPassword: String(repeating: "a", count: 33), to: file("long.pdf"))) {
+            XCTAssertEqual($0 as? WaraqaError, .passwordUnsupported)
         }
         let fixture = file("fixture-locked.pdf")
         Fixtures.encryptedPDF(["Known password"], password: "pass", at: fixture)

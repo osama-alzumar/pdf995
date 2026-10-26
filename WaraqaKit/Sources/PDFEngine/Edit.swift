@@ -321,6 +321,9 @@ extension PDFEngine {
         for field in newFields {
             guard let page = doc.page(at: field.pageIndex) else { continue }
             let widget = PDFAnnotation(bounds: cgRect(field.rect), forType: .widget, withProperties: nil)
+            // Set the name in the annotation dictionary (/T) too; otherwise PDFKit writes
+            // generated names such as "text0" when saving.
+            widget.setValue(field.name as NSString, forAnnotationKey: .widgetFieldName)
             widget.fieldName = field.name
             switch field.kind {
             case .text:
@@ -341,6 +344,7 @@ extension PDFEngine {
                         annotation.buttonWidgetState = (value == "1" || value.lowercased() == "on") ? .onState : .offState
                     } else {
                         annotation.widgetStringValue = value
+                        annotation.setValue(value as NSString, forAnnotationKey: .widgetValue)
                     }
                 }
             }

@@ -31,6 +31,7 @@ public enum WaraqaError: Error, Equatable, Sendable {
     case needsTwoFiles
     case nothingToRedact
     case missingOptions
+    case passwordUnsupported
 
     public var message: LocalizedText {
         switch self {
@@ -95,6 +96,9 @@ public enum WaraqaError: Error, Equatable, Sendable {
             LocalizedText("أدوات الذكاء الاصطناعي غير مفعّلة على الخادم.", "AI tools aren't enabled on the server.")
         case .needsTwoFiles:
             LocalizedText("اختر ملفين للمقارنة.", "Choose two files to compare.")
+        case .passwordUnsupported:
+            LocalizedText("استخدم كلمة مرور من حروف إنجليزية وأرقام ورموز، بحد أقصى 32 خانة.",
+                          "Use a password of English letters, digits and symbols, up to 32 characters.")
         case .missingOptions:
             LocalizedText("أكمل الخيارات المطلوبة أولاً.", "Complete the required options first.")
         case .nothingToRedact:
