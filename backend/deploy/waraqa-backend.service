@@ -1,0 +1,21 @@
+# systemd unit for running the server without Docker (Ubuntu 24.04).
+[Unit]
+Description=Waraqa processing server
+After=network.target
+
+[Service]
+User=waraqa
+WorkingDirectory=/opt/waraqa/backend
+EnvironmentFile=/opt/waraqa/backend/.env
+Environment=WARAQA_WORK_DIR=/var/tmp/waraqa-work
+ExecStart=/opt/waraqa/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8765 --proxy-headers
+Restart=always
+# Hardening: no home, private tmp, read-only system.
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/tmp/waraqa-work
+ProtectHome=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

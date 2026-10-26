@@ -1,0 +1,105 @@
+# Builds Waraqa on a GitHub-hosted Mac and runs every test that needs Apple frameworks:
+#  - WaraqaKit on macOS (WaraqaCore + the PDFKit/CoreGraphics/Vision engine tests),
+#  - the iOS app build (simulator + unsigned device build),
+#  - UI smoke tests with screenshots (Arabic and English), uploaded as an artifact.
+# The backend job runs the server's end-to-end tests on Linux with the real engines.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest Xcode
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
+
+      - name: WaraqaKit tests (macOS — includes the PDF engine)
+        working-directory: WaraqaKit
+        run: swift test 2>&1 | tee ../waraqakit-tests.log | grep -E "error:|failed|passed|skipped|Executed|compress |Vision languages|Arabic OCR" | tail -150
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          rts=sorted([k for k in d if 'iOS' in k], key=lambda k:[int(x) for x in k.split('iOS-')[1].split('-')])
+          for rt in reversed(rts):
+              for dev in d[rt]:
+                  if dev['name'].startswith('iPhone') and 'Pro' in dev['name']:
+                      print(dev['udid']); sys.exit()
+          ")
+          echo "udid=$UDID" >> $GITHUB_OUTPUT
+
+      - name: Build and UI-test on the simulator
+        run: |
+          set -o pipefail
+          xcodebuild test -project Waraqa.xcodeproj -scheme Waraqa \
+            -destination "id=${{ steps.sim.outputs.udid }}" -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee xcodebuild-test.log | grep -E "error:|warning: .*Waraqa|Test Case|TEST|Executed" | tail -200
+
+      - name: Device build (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild build -project Waraqa.xcodeproj -scheme Waraqa -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tail -30
+
+      - name: Export screenshots
+        if: always()
+        run: |
+          mkdir -p screenshots
+          if [ -d TestResults.xcresult ]; then
+            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path screenshots || true
+          fi
+          ls -la screenshots | head -50
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-test-results
+          path: |
+            screenshots
+            waraqakit-tests.log
+            xcodebuild-test.log
+          retention-days: 14
+
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install engines
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends libreoffice-writer libreoffice-calc libreoffice-impress \
+            tesseract-ocr tesseract-ocr-ara tesseract-ocr-eng qpdf ocrmypdf ghostscript poppler-utils \
+            fonts-noto-core fonts-kacst fonts-hosny-amiri unpaper pngquant
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Python deps
+        working-directory: backend
+        run: pip install -r requirements.lock
+      - name: End-to-end tests
+        working-directory: backend
+        env: { WARAQA_WORK_DIR: /tmp/waraqa-ci-work }
+        run: python -m pytest -q tests
