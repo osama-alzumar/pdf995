@@ -323,7 +323,7 @@ extension PDFEngine {
             let widget = PDFAnnotation(bounds: cgRect(field.rect), forType: .widget, withProperties: nil)
             // Set the name in the annotation dictionary (/T) too; otherwise PDFKit writes
             // generated names such as "text0" when saving.
-            widget.setValue(field.name as NSString, forAnnotationKey: .widgetFieldName)
+            widget.setValue(field.name as NSString, forAnnotationKey: PDFAnnotationKey(rawValue: "/T"))
             widget.fieldName = field.name
             switch field.kind {
             case .text:
