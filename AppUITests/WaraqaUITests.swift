@@ -10,7 +10,7 @@ final class WaraqaUITests: XCTestCase {
 
     private func launch(_ language: String, _ extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-WaraqaLanguage", language] + extra
+        app.launchArguments = ["-WaraqaLanguage", language, "-WaraqaUITestUnlocked"] + extra
         app.launch()
         return app
     }

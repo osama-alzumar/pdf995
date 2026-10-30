@@ -35,7 +35,11 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $protecting, onDismiss: { protectFiles = [] }) {
             ProtectFlowView(language: lang, files: protectFiles)
         }
-        .onAppear(perform: openDemoIfRequested)
+        .task {
+            // After the first frame, so the full-screen cover can be presented.
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            openDemoIfRequested()
+        }
     }
 
     /// DEBUG only: `-WaraqaDemoProtect` opens the protect flow with a generated sample document

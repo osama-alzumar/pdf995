@@ -80,7 +80,13 @@ final class VaultLock: ObservableObject {
     @Published var lastError: String?
 
     var lockEnabled: Bool {
-        get { UserDefaults.standard.object(forKey: "vaultLockEnabled") as? Bool ?? true }
+        get {
+            #if DEBUG
+            // UI tests: the simulator can't answer Face ID prompts. The wallet stays encrypted.
+            if ProcessInfo.processInfo.arguments.contains("-WaraqaUITestUnlocked") { return false }
+            #endif
+            return UserDefaults.standard.object(forKey: "vaultLockEnabled") as? Bool ?? true
+        }
         set { UserDefaults.standard.set(newValue, forKey: "vaultLockEnabled"); objectWillChange.send() }
     }
 
