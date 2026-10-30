@@ -58,7 +58,7 @@ public enum ProtectionPurpose: String, CaseIterable, Codable, Sendable, Identifi
     }
 }
 
-public struct ProtectionSpec: Codable, Equatable, Sendable {
+public struct ProtectionSpec: Codable, Hashable, Sendable {
     public var recipient: String = ""
     public var purpose: ProtectionPurpose = .identity
     /// Free text used when `purpose` is `.other`.

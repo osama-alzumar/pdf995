@@ -493,7 +493,9 @@ struct ProtectResultView: View {
                 .buttonBorderShape(.roundedRectangle(radius: Theme.smallRadius))
                 HStack(spacing: 10) {
                     SecondaryButton(title: lang.t("حفظ في الملفات", "Save to Files"), systemImage: "square.and.arrow.down") { exporting = true }
-                    SecondaryButton(title: lang.t("مشاركة آمنة برابط", "Secure link"), systemImage: "link") { showShare = true }
+                    if ToolAvailability.linkSharing {
+                        SecondaryButton(title: lang.t("مشاركة آمنة برابط", "Secure link"), systemImage: "link") { showShare = true }
+                    }
                 }
                 vaultCard
                 NoteBox(systemImage: "exclamationmark.triangle", text: lang.t(

@@ -23,8 +23,8 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     # https URL of the processing server (backend/). Empty = server tools show "not enabled".
     WARAQA_SERVER_URL: ""
-    WARAQA_PRIVACY_POLICY_URL: ""
-    WARAQA_SUPPORT_EMAIL: ""
+    WARAQA_PRIVACY_POLICY_URL: "https://osama-alzumar.github.io/pdf995/privacy.html"
+    WARAQA_SUPPORT_EMAIL: "amop994@gmail.com"
 
 targets:
   Waraqa:

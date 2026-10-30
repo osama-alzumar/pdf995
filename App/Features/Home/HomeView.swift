@@ -117,7 +117,8 @@ struct HomeView: View {
                 Button(lang.t("الكل", "All")) { app.selectedTab = .tools }.font(.app(.subheadline, .bold))
             }
             LazyVGrid(columns: grid, spacing: 12) {
-                ForEach([ToolID.imagesToPDF, .merge, .compress, .pdfToWord, .sign, .watermark], id: \.self) { id in
+                ForEach([ToolID.imagesToPDF, .merge, .compress, .pdfToWord, .sign, .watermark, .split]
+                    .filter(ToolAvailability.isAvailable).prefix(6), id: \.self) { id in
                     Button { app.open(id) } label: { QuickToolTile(tool: ToolCatalog.info(id)) }
                         .buttonStyle(.plain)
                 }
@@ -180,7 +181,7 @@ struct HomeView: View {
                 }
                 .buttonStyle(.borderedProminent)
             }
-            ForEach(suggestions, id: \.self) { id in
+            ForEach(suggestions.filter(ToolAvailability.isAvailable), id: \.self) { id in
                 Button {
                     let incoming = app.incoming
                     app.incoming = []
@@ -225,19 +226,19 @@ struct ToolsView: View {
                     .padding(12)
                     .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.smallRadius))
                     if !query.trimmingCharacters(in: .whitespaces).isEmpty {
-                        let results = ToolSearch.search(query)
+                        let results = ToolSearch.search(query).filter { ToolAvailability.isAvailable($0.id) }
                         if results.isEmpty { T("لا توجد أداة بهذا الاسم.", "No tool matches that.").font(.app(.footnote)) }
                         ForEach(results) { tool in
                             Button { open(tool.id) } label: { ToolRow(tool: tool).padding(12).card() }.buttonStyle(.plain)
                         }
                     } else {
                         LazyVGrid(columns: grid, spacing: 12) {
-                            ForEach(ToolCatalog.featured, id: \.self) { id in
+                            ForEach(ToolCatalog.featured.filter(ToolAvailability.isAvailable), id: \.self) { id in
                                 Button { open(id) } label: { FeaturedToolTile(tool: ToolCatalog.info(id)) }.buttonStyle(.plain)
                             }
                         }
                         SectionTitle(text: lang.t("أدوات أخرى", "More tools"))
-                        let others = ToolCatalog.all.filter { !ToolCatalog.featured.contains($0.id) }
+                        let others = ToolCatalog.all.filter { !ToolCatalog.featured.contains($0.id) && ToolAvailability.isAvailable($0.id) }
                         VStack(spacing: 0) {
                             ForEach(others) { tool in
                                 Button { open(tool.id) } label: { ToolRow(tool: tool).padding(12) }.buttonStyle(.plain)

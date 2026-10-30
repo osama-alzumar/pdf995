@@ -77,9 +77,8 @@ final class WaraqaUITests: XCTestCase {
         XCTAssertTrue(search.waitForExistence(timeout: 10))
         screenshot("07-tools-ar")
         search.tap()
-        search.typeText("اكسل")
-        XCTAssertTrue(app.staticTexts["Excel إلى PDF"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["PDF إلى Excel"].exists)
+        search.typeText("ازالة") // typed without hamza
+        XCTAssertTrue(app.staticTexts["إزالة علامة ورقة"].waitForExistence(timeout: 5))
     }
 
     func testEveryToolScreenOpens() {

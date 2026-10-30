@@ -67,3 +67,13 @@ final class UploadApproval: @unchecked Sendable {
     var isApproved: Bool { lock.withLock { value } }
     func set(_ newValue: Bool) { lock.withLock { value = newValue } }
 }
+
+/// Tools that need the processing server are hidden when this build has none, so nothing on
+/// screen leads to a feature that can't work.
+enum ToolAvailability {
+    @MainActor static func isAvailable(_ tool: ToolID) -> Bool {
+        ToolCatalog.info(tool).execution != .server || ServerService.shared.isConfigured
+    }
+
+    @MainActor static var linkSharing: Bool { ServerService.shared.isConfigured }
+}

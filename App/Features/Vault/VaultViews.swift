@@ -221,7 +221,7 @@ struct VaultDocumentView: View {
                     }
                     .buttonStyle(.borderedProminent)
                 }
-                if current.kind == .protected {
+                if current.kind == .protected && ToolAvailability.linkSharing {
                     SecondaryButton(title: lang.t("مشاركة آمنة برابط", "Secure link"), systemImage: "link") { showShare = true }
                 }
                 SecondaryButton(title: lang.t("علامة مائية جديدة", "New watermark"), systemImage: "drop") { protectAgain = true }
