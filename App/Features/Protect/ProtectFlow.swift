@@ -85,21 +85,39 @@ final class ProtectFlow: ObservableObject {
 
     // MARK: Live preview (rendered by the engine from a real protected page)
 
+    /// Renders at most one preview at a time: changes made while one is rendering (e.g. dragging
+    /// a slider) are collected and only the latest settings are rendered next. Rendering in
+    /// parallel used enough memory on photo documents for iOS to close the app.
     func schedulePreview(immediate: Bool = false) {
-        guard let source else { return }
+        guard source != nil else { return }
         previewTask?.cancel()
-        let spec = self.spec, page = previewPage, areas = redactMap
         previewTask = Task { [weak self] in
             if !immediate { try? await Task.sleep(nanoseconds: 220_000_000) }
-            guard !Task.isCancelled else { return }
-            self?.previewing = true
-            let box = try? await ToolJobs.background {
-                ImageBox(image: try PDFEngine.protectionPreview(PDFInput(url: source.url, password: source.password), spec: spec,
-                                                                redactAreas: areas, page: page, maxPixels: 1000))
-            }
-            guard !Task.isCancelled else { return }
-            if let box { self?.preview = UIImage(cgImage: box.image) }
-            self?.previewing = false
+            guard !Task.isCancelled, let self else { return }
+            self.previewWanted = true
+            await self.renderPreviews()
+        }
+    }
+
+    private var previewWanted = false
+    private var previewRunning = false
+
+    private func renderPreviews() async {
+        guard !previewRunning else { return }
+        previewRunning = true
+        previewing = true
+        defer { previewRunning = false; previewing = false }
+        while previewWanted, let source {
+            previewWanted = false
+            let spec = self.spec, page = previewPage, areas = redactMap
+            // Not cancelled with the debounce task, so one render always finishes and frees its memory.
+            let box = try? await Task.detached(priority: .userInitiated) {
+                try autoreleasepool {
+                    ImageBox(image: try PDFEngine.protectionPreview(PDFInput(url: source.url, password: source.password), spec: spec,
+                                                                    redactAreas: areas, page: page, maxPixels: 1000))
+                }
+            }.value
+            if let box { preview = UIImage(cgImage: box.image) }
         }
     }
 

@@ -118,4 +118,110 @@ final class WaraqaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["احمِ مستندك"].waitForExistence(timeout: 10))
         screenshot("10-home-dark-ar")
     }
+
+    // MARK: Every tool, end to end on generated sample files
+
+    /// Runs each on-device tool through its real screen, runner and engine and expects the result
+    /// screen (not an error). Server-only tools are hidden in this build and the editor-based tools
+    /// have their own tests.
+    func testEveryOnDeviceToolProducesAResult() {
+        let tools = ["merge", "split", "removePages", "extractPages", "organize", "scanToPDF", "compress", "repair", "ocr",
+                     "imagesToPDF", "htmlToPDF", "pdfToImages", "pdfToMarkdown", "rotate", "pageNumbers", "watermark", "crop",
+                     "unlock", "protect", "redact", "compare", "convertImages", "shrinkImages"]
+        var failures: [String] = []
+        for tool in tools {
+            let app = launch("ar", ["-WaraqaOpenTool", tool, "-WaraqaSampleFiles"])
+            let run = app.buttons["تنفيذ"]
+            guard run.waitForExistence(timeout: 15) else { failures.append("\(tool): no run button"); app.terminate(); continue }
+            switch tool {
+            case "removePages", "extractPages":
+                type("2", into: app.textFields["1-3, 5, 8"], app)
+            case "watermark":
+                type("سري", into: app.textFields.firstMatch, app)
+            case "protect":
+                type("123456", into: app.secureTextFields["كلمة المرور"], app)
+                type("123456", into: app.secureTextFields["تأكيد كلمة المرور"], app)
+            case "redact":
+                type("1000000001", into: app.textViews.firstMatch, app)
+            default:
+                break
+            }
+            reveal(run, in: app)
+            guard run.isEnabled else { failures.append("\(tool): run button disabled"); app.terminate(); continue }
+            run.tap()
+            let done = app.buttons["ابدأ من جديد"]
+            let failed = app.buttons["رجوع وتعديل الخيارات"]
+            let deadline = Date().addingTimeInterval(90)
+            while Date() < deadline && !done.exists && !failed.exists { _ = done.waitForExistence(timeout: 1) }
+            if !done.exists {
+                screenshot("failed-\(tool)")
+                let message = app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " | ")
+                failures.append("\(tool): \(failed.exists ? "error" : "timeout") — \(message.prefix(300))")
+            }
+            app.terminate()
+        }
+        XCTAssertTrue(failures.isEmpty, failures.joined(separator: "\n"))
+    }
+
+    /// Dark mode used to turn drawn signatures white. Draw in blue and check the placed
+    /// signature on the page is really blue.
+    func testSignatureKeepsItsColorInDarkMode() {
+        let app = launch("ar", ["-WaraqaOpenTool", "sign", "-WaraqaSampleFiles", "-WaraqaDark"])
+        let place = app.buttons["ضع توقيعك"]
+        XCTAssertTrue(place.waitForExistence(timeout: 15))
+        reveal(place, in: app)
+        place.tap()
+        XCTAssertTrue(app.navigationBars["اضغط حيث تريد التوقيع"].waitForExistence(timeout: 15))
+        sleep(2)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)).tap()
+        let canvas = app.otherElements["signature.canvas"].exists ? app.otherElements["signature.canvas"] : app.descendants(matching: .any)["signature.canvas"]
+        XCTAssertTrue(canvas.waitForExistence(timeout: 10), "the signature sheet opens")
+        app.buttons["ink.blue"].tap()
+        canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.6))
+            .press(forDuration: 0.05, thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.35)))
+        canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.3))
+            .press(forDuration: 0.05, thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.65)))
+        screenshot("signature-sheet-dark")
+        XCTAssertGreaterThan(bluePixels(app.screenshot()), 150, "the ink on the drawing area is blue")
+        app.buttons["استخدم التوقيع"].tap()
+        XCTAssertFalse(canvas.waitForExistence(timeout: 2) && canvas.isHittable)
+        sleep(1)
+        screenshot("signature-placed-dark")
+        XCTAssertGreaterThan(bluePixels(app.screenshot()), 150, "the signature placed on the page is blue, not white")
+        app.navigationBars.buttons["تم"].tap()
+        XCTAssertTrue(app.staticTexts["تم بنجاح"].waitForExistence(timeout: 30), "the signed copy is produced")
+    }
+
+    // MARK: Helpers
+
+    private func type(_ text: String, into field: XCUIElement, _ app: XCUIApplication) {
+        XCTAssertTrue(field.waitForExistence(timeout: 10), "field for \(text)")
+        reveal(field, in: app)
+        field.tap()
+        field.typeText(text)
+        if app.keyboards.buttons["Return"].exists { app.keyboards.buttons["Return"].tap() }
+        else if app.keyboards.buttons["return"].exists { app.keyboards.buttons["return"].tap() }
+        else if app.toolbars.buttons["Done"].exists { app.toolbars.buttons["Done"].tap() }
+    }
+
+    private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
+        var tries = 0
+        while !element.isHittable && tries < 6 { app.swipeUp(); tries += 1 }
+    }
+
+    /// Pixels of the fixed signature blue (r≈13 g≈89 b≈217), which nothing else in the UI uses.
+    private func bluePixels(_ shot: XCUIScreenshot) -> Int {
+        guard let cg = shot.image.cgImage else { return 0 }
+        let w = cg.width, h = cg.height
+        var data = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &data, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return 0 }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var count = 0
+        for i in stride(from: 0, to: data.count, by: 4) {
+            let r = Int(data[i]), g = Int(data[i + 1]), b = Int(data[i + 2])
+            if b > 160 && r < 70 && g > 50 && g < 125 { count += 1 }
+        }
+        return count
+    }
 }

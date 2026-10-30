@@ -188,12 +188,15 @@ public enum PDFEngine {
     }
 
     /// Renders a page to an RGB bitmap at `dpi` (72 = 1 point per pixel).
-    static func render(_ page: CGPDFPage, dpi: CGFloat, drawExtra: ((CGContext, CGAffineTransform) -> Void)? = nil) throws -> CGImage {
+    /// Renders a page at `dpi`, but never larger than `maxSide` pixels on the long side: photo
+    /// pages are physically big, and an uncapped bitmap can use hundreds of MB on a phone.
+    static func render(_ page: CGPDFPage, dpi: CGFloat, maxSide: CGFloat = 4096,
+                       drawExtra: ((CGContext, CGAffineTransform) -> Void)? = nil) throws -> CGImage {
         let size = displaySize(of: page)
-        let scale = dpi / 72
+        let scale = min(dpi / 72, maxSide / max(size.width, size.height, 1))
         let width = max(1, Int((size.width * scale).rounded()))
         let height = max(1, Int((size.height * scale).rounded()))
-        guard width * height <= 12_000 * 12_000,
+        guard width * height <= 8_192 * 8_192,
               let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpace(name: CGColorSpace.sRGB)!,
                                   bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else {

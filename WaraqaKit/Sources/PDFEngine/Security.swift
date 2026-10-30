@@ -86,7 +86,8 @@ extension PDFEngine {
     /// they are. Document metadata is dropped. The output is checked: none of the searched terms
     /// may be extractable from it.
     public static func redact(_ input: PDFInput, areas: [Int: [PageRect]], terms: [String] = [],
-                              dpi: CGFloat = 200, to output: URL, progress: ProgressHandler? = nil) throws -> RedactionReport {
+                              dpi: CGFloat = 200, maxSide: CGFloat = 4096, to output: URL,
+                              progress: ProgressHandler? = nil) throws -> RedactionReport {
         var all = areas
         if !terms.isEmpty {
             for (page, rects) in try findAreas(of: terms, in: input) { all[page, default: []] += rects }
@@ -98,7 +99,7 @@ extension PDFEngine {
         let doc = try prepareForDrawing(input.url, password: input.password, work: work)
         try redraw(doc, to: output, replacement: { index, page, _ in
             guard let rects = all[index], !rects.isEmpty else { return nil }
-            return try render(page, dpi: dpi) { ctx, transform in
+            return try render(page, dpi: dpi, maxSide: maxSide) { ctx, transform in
                 ctx.saveGState()
                 ctx.concatenate(transform)
                 ctx.setFillColor(CGColor(gray: 0, alpha: 1))

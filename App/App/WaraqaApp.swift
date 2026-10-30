@@ -101,7 +101,8 @@ struct RootView: View {
             app.setLanguage(language)
         }
         if let i = args.firstIndex(of: "-WaraqaOpenTool"), i + 1 < args.count, let tool = ToolID(rawValue: args[i + 1]) {
-            app.open(tool)
+            let samples = args.contains("-WaraqaSampleFiles") ? DebugSamples.files(for: ToolCatalog.info(tool)) : []
+            app.open(tool, with: samples)
         }
         #endif
     }

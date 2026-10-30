@@ -11,7 +11,7 @@ struct SignatureSheet: View {
     @State private var style: Style = .draw
     @State private var canvas = PKCanvasView()
     @State private var typed = ""
-    @State private var inkColor: UIColor = .black
+    @State private var inkColor: UIColor = SignatureSheet.inks[0].color
     @State private var hasDrawing = false
     @State private var saved: Data? = SignatureStore.load()
 
@@ -22,6 +22,7 @@ struct SignatureSheet: View {
                     Button { done(saved) } label: {
                         HStack {
                             Image(uiImage: image).resizable().scaledToFit().frame(height: 44)
+                                .padding(.horizontal, 6).background(Color.white, in: RoundedRectangle(cornerRadius: 6))
                             Spacer()
                             T("استخدم التوقيع المحفوظ", "Use saved signature").font(.app(.subheadline, .semibold))
                         }
@@ -39,20 +40,16 @@ struct SignatureSheet: View {
                 if style == .draw {
                     SignatureCanvas(canvas: canvas, color: inkColor) { hasDrawing = !canvas.drawing.bounds.isEmpty }
                         .frame(height: 220)
-                        .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: Theme.radius))
+                        // Always paper-white, so the ink colors look the same in dark mode as on the page.
+                        .background(Color.white, in: RoundedRectangle(cornerRadius: Theme.radius))
                         .overlay(alignment: .bottom) {
                             Rectangle().fill(Color.secondary.opacity(0.4)).frame(height: 1).padding(.horizontal, 30).padding(.bottom, 50)
                         }
                         .overlay(RoundedRectangle(cornerRadius: Theme.radius).stroke(Color.secondary.opacity(0.25)))
                         .accessibilityLabel(lang.t("مساحة رسم التوقيع", "Signature drawing area"))
+                        .accessibilityIdentifier("signature.canvas")
                     HStack {
-                        ForEach([UIColor.black, UIColor.systemBlue, UIColor(red: 0.1, green: 0.2, blue: 0.55, alpha: 1)], id: \.self) { color in
-                            Button { inkColor = color } label: {
-                                Circle().fill(Color(uiColor: color)).frame(width: 28, height: 28)
-                                    .overlay(Circle().stroke(inkColor == color ? Theme.accent : .clear, lineWidth: 3))
-                            }
-                        }
-                        Spacer()
+                        inkPicker
                         Button(lang.t("مسح", "Clear")) { canvas.drawing = PKDrawing(); hasDrawing = false }
                     }
                 } else {
@@ -61,8 +58,10 @@ struct SignatureSheet: View {
                         .padding(12)
                         .background(Theme.subtleFill, in: RoundedRectangle(cornerRadius: Theme.smallRadius))
                     if !typed.isEmpty {
-                        typedSignature.frame(height: 90)
+                        typedSignature.frame(height: 90).frame(maxWidth: .infinity)
+                            .background(Color.white, in: RoundedRectangle(cornerRadius: Theme.smallRadius))
                     }
+                    inkPicker
                 }
                 NoteBox(systemImage: "info.circle", text: lang.t(
                     "هذا توقيع مرئي يُرسم على الصفحة، وليس توقيعاً رقمياً معتمداً بشهادة إلكترونية.",
@@ -84,6 +83,42 @@ struct SignatureSheet: View {
         }
     }
 
+    /// Fixed (non-dynamic) colors: what you pick is exactly what lands on the page.
+    static let inks: [(id: String, title: LocalizedText, color: UIColor)] = [
+        ("black", LocalizedText("أسود", "Black"), UIColor(red: 0.07, green: 0.07, blue: 0.09, alpha: 1)),
+        ("blue", LocalizedText("أزرق", "Blue"), UIColor(red: 0.05, green: 0.35, blue: 0.85, alpha: 1)),
+        ("navy", LocalizedText("كحلي", "Navy"), UIColor(red: 0.08, green: 0.16, blue: 0.45, alpha: 1)),
+        ("green", LocalizedText("أخضر", "Green"), UIColor(red: 0.02, green: 0.45, blue: 0.25, alpha: 1)),
+        ("red", LocalizedText("أحمر", "Red"), UIColor(red: 0.75, green: 0.1, blue: 0.1, alpha: 1)),
+    ]
+
+    private var inkPicker: some View {
+        HStack(spacing: 14) {
+            ForEach(SignatureSheet.inks, id: \.id) { ink in
+                Button { choose(ink.color) } label: {
+                    Circle().fill(Color(uiColor: ink.color)).frame(width: 32, height: 32)
+                        .overlay(Circle().stroke(inkColor == ink.color ? Theme.accent : .clear, lineWidth: 3).padding(-4))
+                }
+                .accessibilityLabel(lang.t(ink.title))
+                .accessibilityIdentifier("ink.\(ink.id)")
+                .accessibilityAddTraits(inkColor == ink.color ? .isSelected : [])
+            }
+            Spacer()
+        }
+    }
+
+    /// Changes the pen and recolors what was already drawn.
+    private func choose(_ color: UIColor) {
+        inkColor = color
+        var drawing = canvas.drawing
+        drawing.strokes = drawing.strokes.map { stroke in
+            var stroke = stroke
+            stroke.ink = PKInk(stroke.ink.inkType, color: color)
+            return stroke
+        }
+        canvas.drawing = drawing
+    }
+
     private var typedSignature: some View {
         Text(typed)
             .font(.custom(SignatureSheet.scriptFont(for: typed), size: 54))
@@ -102,7 +137,13 @@ struct SignatureSheet: View {
     private func drawnPNG() -> Data? {
         let bounds = canvas.drawing.bounds.insetBy(dx: -8, dy: -8)
         guard !bounds.isEmpty else { return nil }
-        return canvas.drawing.image(from: bounds, scale: 3).pngData()
+        // PencilKit renders ink for the current appearance: in dark mode black ink comes out
+        // white. The signature goes on a white page, so always render it in light mode.
+        var image: UIImage?
+        UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
+            image = canvas.drawing.image(from: bounds, scale: 3)
+        }
+        return image?.pngData()
     }
 
     @MainActor
@@ -110,6 +151,7 @@ struct SignatureSheet: View {
         let renderer = ImageRenderer(content: typedSignature.frame(height: 110).fixedSize(horizontal: true, vertical: false))
         renderer.scale = 3
         renderer.isOpaque = false
+        renderer.colorScheme = .light
         return renderer.uiImage?.pngData()
     }
 }

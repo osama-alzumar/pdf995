@@ -75,6 +75,25 @@ final class ProtectTests: XCTestCase {
         XCTAssertNotNil(CGImageSourceCreateWithURL(outputs[1] as CFURL, nil))
     }
 
+    /// A 12 MP phone photo becomes a very large page. Rendering it (redaction, reading, preview)
+    /// must stay bounded, or iOS closes the app for memory.
+    func testPhotoPagesRenderWithBoundedMemory() throws {
+        let photo = file("big.jpg")
+        Fixtures.writeImage(Fixtures.photo(width: 4000, height: 3000), type: .jpeg, to: photo)
+        let pdf = file("big.pdf")
+        try PDFEngine.imagesToPDF([.file(photo)], pageSize: .fit, to: pdf)
+        let page = try XCTUnwrap(PDFDocument(url: pdf)?.page(at: 0)?.pageRef)
+        let full = try PDFEngine.render(page, dpi: 220)
+        XCTAssertLessThanOrEqual(max(full.width, full.height), 4096)
+        let read = try PDFEngine.render(page, dpi: 220, maxSide: 3000)
+        XCTAssertLessThanOrEqual(max(read.width, read.height), 3000)
+        let areas = [0: [PageRect(x: 100, y: 100, width: 300, height: 80)]]
+        let preview = try PDFEngine.protectionPreview(PDFInput(url: pdf), spec: englishSpec(.tiled), redactAreas: areas, maxPixels: 1000)
+        XCTAssertEqual(max(preview.width, preview.height), 1000)
+        try PDFEngine.protect(PDFInput(url: pdf), spec: englishSpec(.diagonal), redactAreas: areas, to: file("big-protected.pdf"))
+        XCTAssertEqual(Fixtures.pageCount(file("big-protected.pdf")), 1)
+    }
+
     func testPreviewIsRenderedFromARealProtectedPage() throws {
         let src = file("doc.pdf")
         Fixtures.simplePDF(["A", "B", "C"], at: src)

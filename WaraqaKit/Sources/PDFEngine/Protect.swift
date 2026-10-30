@@ -44,13 +44,13 @@ extension PDFEngine {
     /// without them), then the protection mark is drawn on every page. Metadata is not carried
     /// over. The original file is not touched.
     public static func protect(_ input: PDFInput, spec: ProtectionSpec, redactAreas: [Int: [PageRect]] = [:],
-                               to output: URL, progress: ProgressHandler? = nil) throws {
+                               redactMaxSide: CGFloat = 4096, to output: URL, progress: ProgressHandler? = nil) throws {
         let spec = spec.normalized
         let work = try Workspace()
         var source = input
         if redactAreas.values.contains(where: { !$0.isEmpty }) {
             let redacted = work.file("redacted.pdf")
-            _ = try redact(input, areas: redactAreas, to: redacted, progress: { p in progress?(p * 0.5) })
+            _ = try redact(input, areas: redactAreas, maxSide: redactMaxSide, to: redacted, progress: { p in progress?(p * 0.5) })
             source = PDFInput(url: redacted)
         }
         let doc = try prepareForDrawing(source.url, password: source.password, work: work)
@@ -86,7 +86,8 @@ extension PDFEngine {
         try write(single, to: pageFile)
         let out = work.file("preview.pdf")
         let areas = redactAreas[index].map { [0: $0] } ?? [:]
-        try protect(PDFInput(url: pageFile), spec: spec, redactAreas: areas, to: out)
+        // The preview only needs screen resolution; the real copy is rendered at full quality.
+        try protect(PDFInput(url: pageFile), spec: spec, redactAreas: areas, redactMaxSide: max(maxPixels * 1.5, 1200), to: out)
         guard let image = thumbnail(out, page: 0, maxPixels: maxPixels) else { throw WaraqaError.writeFailed }
         return image
     }
@@ -242,7 +243,7 @@ extension PDFEngine {
             try checkCancelled()
             guard let page = doc.page(at: i)?.pageRef else { continue }
             let size = displaySize(of: page)
-            let image = try render(page, dpi: 220)
+            let image = try render(page, dpi: 220, maxSide: 3000) // enough for text recognition, bounded memory
             let request = VNRecognizeTextRequest()
             request.recognitionLevel = .accurate
             request.usesLanguageCorrection = false
