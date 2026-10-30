@@ -36,7 +36,7 @@ jobs:
         working-directory: WaraqaKit
         run: |
           set -o pipefail
-          swift test 2>&1 | tee ../waraqakit-tests.log | grep -E "error:|failed|passed|skipped|Executed|compress |Vision languages|Arabic OCR|Arabic password|Form field names" | tail -150
+          swift test 2>&1 | tee ../waraqakit-tests.log | grep -E "error:|failed|passed|skipped|Executed|compress |Vision languages|Arabic OCR|Arabic password|Form field names|Analysis:" | tail -150
 
       - name: Install XcodeGen
         run: brew install xcodegen

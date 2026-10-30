@@ -167,6 +167,47 @@ public final class ServerClient: @unchecked Sendable {
                                 headers: response.headers)
     }
 
+    // MARK: Secure share links
+
+    /// Uploads an already-protected PDF and creates an expiring view link. The owner token is
+    /// the only way to read the status or revoke the link; keep it in the Keychain.
+    public func createShare(file: MultipartBody.FilePart, recipient: String, purpose: String,
+                            duration: ShareDuration, maxViews: Int, allowDownload: Bool,
+                            progress: (@Sendable (Double) -> Void)? = nil) async throws -> CreateShareResponse {
+        let base = try requireBase()
+        guard consent() else { throw WaraqaError.serverConsentRequired }
+        let fields = [
+            "recipient": String(recipient.prefix(80)), "purpose": String(purpose.prefix(80)),
+            "expires_in": String(duration.seconds), "max_views": String(max(1, min(maxViews, 50))),
+            "allow_download": allowDownload ? "1" : "0",
+        ]
+        let body = try MultipartBody.write(fields: fields, files: [file], to: workDirectory)
+        defer { try? FileManager.default.removeItem(at: body.fileURL) }
+        var request = URLRequest(url: base.appendingPathComponent("v1/shares"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = timeout
+        request.setValue(body.contentType, forHTTPHeaderField: "Content-Type")
+        let response = try await perform(request, bodyFile: body.fileURL, progress: progress)
+        return try decode(CreateShareResponse.self, response)
+    }
+
+    public func shareStatus(id: String, ownerToken: String) async throws -> ShareStatus {
+        let base = try requireBase()
+        var request = URLRequest(url: base.appendingPathComponent("v1/shares/\(id)"))
+        request.timeoutInterval = 20
+        request.setValue(ownerToken, forHTTPHeaderField: "X-Owner-Token")
+        return try decode(ShareStatus.self, try await perform(request, bodyFile: nil, progress: nil))
+    }
+
+    public func revokeShare(id: String, ownerToken: String) async throws -> ShareStatus {
+        let base = try requireBase()
+        var request = URLRequest(url: base.appendingPathComponent("v1/shares/\(id)"))
+        request.httpMethod = "DELETE"
+        request.timeoutInterval = 20
+        request.setValue(ownerToken, forHTTPHeaderField: "X-Owner-Token")
+        return try decode(ShareStatus.self, try await perform(request, bodyFile: nil, progress: nil))
+    }
+
     /// JSON request to the AI endpoints. Only extracted text is sent, never the PDF itself.
     public func postJSON<Body: Encodable, Result: Decodable>(_ path: String, body: Body, as: Result.Type) async throws -> Result {
         let base = try requireBase()
@@ -207,8 +248,18 @@ public final class ServerClient: @unchecked Sendable {
     }
 
     private func decode<T: Decodable>(_ type: T.Type, _ response: HTTPResponse) throws -> T {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { d in
+            let raw = try d.singleValueContainer().decode(String.self)
+            let f = ISO8601DateFormatter()
+            f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = f.date(from: raw) { return date }
+            f.formatOptions = [.withInternetDateTime]
+            if let date = f.date(from: raw) { return date }
+            throw DecodingError.dataCorrupted(.init(codingPath: d.codingPath, debugDescription: "bad date \(raw)"))
+        }
         do {
-            return try JSONDecoder().decode(T.self, from: response.body)
+            return try decoder.decode(T.self, from: response.body)
         } catch {
             throw WaraqaError.serverUnavailable
         }
