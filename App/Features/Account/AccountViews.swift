@@ -252,3 +252,11 @@ struct AccountView: View {
         }
     }
 }
+
+extension Bundle {
+    var versionString: String {
+        let v = object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let b = object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+        return "\(v) (\(b))"
+    }
+}
