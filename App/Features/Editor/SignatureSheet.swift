@@ -1,5 +1,6 @@
 import SwiftUI
 import PencilKit
+import WaraqaCore
 
 /// Draw a signature with a finger or Apple Pencil, or type it. Returns transparent PNG data.
 /// The last signature is kept on the device (in the protected app folder) for reuse.
