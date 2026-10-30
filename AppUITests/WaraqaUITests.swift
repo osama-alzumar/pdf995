@@ -33,6 +33,10 @@ final class WaraqaUITests: XCTestCase {
         screenshot("01-home-ar")
         app.swipeUp()
         screenshot("02-home-recents-ar")
+        app.swipeDown()
+        app.buttons["protect.add"].tap()
+        XCTAssertTrue(app.staticTexts["من الصور"].waitForExistence(timeout: 10), "the protect flow opens from Home")
+        screenshot("02b-protect-pick-ar")
     }
 
     func testProtectJourneyWithSample() {

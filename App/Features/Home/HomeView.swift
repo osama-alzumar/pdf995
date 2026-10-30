@@ -35,25 +35,6 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $protecting, onDismiss: { protectFiles = [] }) {
             ProtectFlowView(language: lang, files: protectFiles)
         }
-        .task {
-            // After the first frame, so the full-screen cover can be presented.
-            try? await Task.sleep(nanoseconds: 800_000_000)
-            openDemoIfRequested()
-        }
-    }
-
-    /// DEBUG only: `-WaraqaDemoProtect` opens the protect flow with a generated sample document
-    /// (no real personal data), used by UI tests and for screenshots.
-    private func openDemoIfRequested() {
-        #if DEBUG
-        guard ProcessInfo.processInfo.arguments.contains("-WaraqaDemoProtect"), !protecting else { return }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("نموذج مستند تعريفي.pdf")
-        let lines = ["مستند تعريفي — نموذج تجريبي", "الاسم: سارة أحمد (اسم افتراضي)", "رقم الهوية 1000000001",
-                     "تاريخ الميلاد: 1995/01/01", "الجوال 0500000000", "هذا المستند للعرض فقط ولا يمثل وثيقة حقيقية."]
-        try? PDFEngine.textToPDF(pages: [lines.joined(separator: "\n\n")], title: "بطاقة تعريف — نموذج", rightToLeft: true, to: url)
-        protectFiles = [PickedFile(url: url, name: url.lastPathComponent)]
-        protecting = true
-        #endif
     }
 
     private var header: some View {

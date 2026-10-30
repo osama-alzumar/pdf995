@@ -1,4 +1,5 @@
 import SwiftUI
+import PDFEngine
 import WaraqaCore
 
 @main
@@ -7,7 +8,13 @@ struct WaraqaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            Group {
+                if let sample = Self.demoSample {
+                    ProtectFlowView(language: app.language, files: [sample])
+                } else {
+                    RootView()
+                }
+            }
                 .environmentObject(app)
                 .environment(\.appLanguage, app.language)
                 .environment(\.layoutDirection, app.language.isRightToLeft ? .rightToLeft : .leftToRight)
@@ -20,6 +27,21 @@ struct WaraqaApp: App {
 }
 
 extension WaraqaApp {
+    /// DEBUG `-WaraqaDemoProtect`: opens the protect flow directly with a generated sample
+    /// (fictional data), for UI tests and screenshots.
+    static let demoSample: PickedFile? = {
+        #if DEBUG
+        guard ProcessInfo.processInfo.arguments.contains("-WaraqaDemoProtect") else { return nil }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("نموذج مستند تعريفي.pdf")
+        let lines = ["مستند تعريفي — نموذج تجريبي", "الاسم: سارة أحمد (اسم افتراضي)", "رقم الهوية 1000000001",
+                     "تاريخ الميلاد: 1995/01/01", "الجوال 0500000000", "هذا المستند للعرض فقط ولا يمثل وثيقة حقيقية."]
+        try? PDFEngine.textToPDF(pages: [lines.joined(separator: "\n\n")], title: "بطاقة تعريف — نموذج", rightToLeft: true, to: url)
+        return PickedFile(url: url, name: url.lastPathComponent)
+        #else
+        return nil
+        #endif
+    }()
+
     /// DEBUG `-WaraqaDark` forces dark mode for screenshot tests; release builds follow the system.
     static var debugColorScheme: ColorScheme? {
         #if DEBUG
