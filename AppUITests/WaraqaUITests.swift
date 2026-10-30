@@ -194,6 +194,15 @@ final class WaraqaUITests: XCTestCase {
         let w = app.frame.width, h = app.frame.height
         let around = CGRect(x: w * 0.5 - 120, y: h * 0.45 - 80, width: 240, height: 160)
         XCTAssertGreaterThan(bluePixels(app.screenshot(), in: around, app), 150, "the signature placed on the page is blue, not white")
+        // The placed signature is selected: picking red from the bar recolors it.
+        let red = app.buttons["palette.#D92D20"]
+        XCTAssertTrue(red.waitForExistence(timeout: 5), "the color bar shows for a selected signature")
+        red.tap()
+        sleep(1)
+        screenshot("signature-recolored-dark")
+        XCTAssertGreaterThan(pixels(app.screenshot(), in: around, app) { r, g, b in r > 170 && g < 90 && b < 90 }, 150,
+                             "the signature turned red")
+        XCTAssertLessThan(bluePixels(app.screenshot(), in: around, app), 20, "no blue left")
         app.navigationBars.buttons["تم"].tap()
         XCTAssertTrue(app.staticTexts["تم بنجاح"].waitForExistence(timeout: 30), "the signed copy is produced")
     }
@@ -251,6 +260,10 @@ final class WaraqaUITests: XCTestCase {
 
     /// Pixels of the fixed signature blue (r≈13 g≈89 b≈217) inside `rect` (screen points).
     private func bluePixels(_ shot: XCUIScreenshot, in rect: CGRect, _ app: XCUIApplication) -> Int {
+        pixels(shot, in: rect, app) { r, g, b in b > 160 && r < 70 && g > 50 && g < 125 }
+    }
+
+    private func pixels(_ shot: XCUIScreenshot, in rect: CGRect, _ app: XCUIApplication, matching: (Int, Int, Int) -> Bool) -> Int {
         guard let cg = shot.image.cgImage else { return 0 }
         let w = cg.width, h = cg.height
         let scale = CGFloat(w) / app.frame.width
@@ -266,7 +279,7 @@ final class WaraqaUITests: XCTestCase {
             for x in Int(box.minX)..<Int(box.maxX) {
                 let i = (y * w + x) * 4
                 let r = Int(data[i]), g = Int(data[i + 1]), b = Int(data[i + 2])
-                if b > 160 && r < 70 && g > 50 && g < 125 { count += 1 }
+                if matching(r, g, b) { count += 1 }
             }
         }
         return count

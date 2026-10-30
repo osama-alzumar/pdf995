@@ -74,6 +74,15 @@ final class EditorModel: ObservableObject {
     var canUndo: Bool { !undoStack.isEmpty }
     var canRedo: Bool { !redoStack.isEmpty }
     var selected: EditItem? { items.first { $0.id == selectedID } }
+    /// Placed signatures (images that can be recolored); photos keep their own colors.
+    private(set) var signatureIDs: Set<UUID> = []
+
+    /// Whether the color palette means anything for the selected item.
+    var selectedTakesColor: Bool {
+        guard let item = selected else { return false }
+        if case .image = item.kind { return signatureIDs.contains(item.id) }
+        return true
+    }
 
     static let palette = ["#111111", "#1F5FAD", "#D92D20", "#16A34A", "#F79009", "#FFE600", "#FFFFFF"]
 
@@ -146,7 +155,34 @@ final class EditorModel: ObservableObject {
 
     func applyColor(_ hex: String) {
         color = hex
-        if let id = selectedID { update(id) { $0.colorHex = hex } }
+        guard let id = selectedID, let item = selected else { return }
+        if case .image(let data) = item.kind {
+            // A signature is recolored for real: every ink pixel takes the new color.
+            guard signatureIDs.contains(id), let tinted = Self.recolor(data, hex: hex) else { return }
+            update(id) { $0.kind = .image(tinted); $0.colorHex = hex }
+        } else {
+            update(id) { $0.colorHex = hex }
+        }
+    }
+
+    /// Repaints the opaque pixels of a transparent PNG (a signature) in one color.
+    static func recolor(_ data: Data, hex: String) -> Data? {
+        guard let image = UIImage(data: data), let cg = image.cgImage else { return nil }
+        let v = UInt32(hex.dropFirst(), radix: 16) ?? 0
+        let color = UIColor(red: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255,
+                            blue: CGFloat(v & 0xFF) / 255, alpha: 1)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = false
+        let size = CGSize(width: cg.width, height: cg.height)
+        let tinted = UIGraphicsImageRenderer(size: size, format: format).image { context in
+            let rect = CGRect(origin: .zero, size: size)
+            UIImage(cgImage: cg).draw(in: rect)
+            context.cgContext.setBlendMode(.sourceIn)
+            color.setFill()
+            context.cgContext.fill(rect)
+        }
+        return tinted.pngData()
     }
 
     func applySize(_ value: Double) {
@@ -209,8 +245,10 @@ final class EditorModel: ObservableObject {
         guard let image = UIImage(data: data) else { return }
         let width: Double = isSignature ? 180 : 220
         let height = width * Double(image.size.height / max(image.size.width, 1))
-        add(EditItem(pageIndex: pageIndex, rect: PageRect(x: center.x - width / 2, y: center.y - height / 2, width: width, height: height),
-                     kind: .image(data)))
+        let item = EditItem(pageIndex: pageIndex, rect: PageRect(x: center.x - width / 2, y: center.y - height / 2, width: width, height: height),
+                            kind: .image(data))
+        if isSignature { signatureIDs.insert(item.id) }
+        add(item)
         tool = .select
     }
 

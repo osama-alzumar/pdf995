@@ -145,7 +145,7 @@ struct PDFEditorView: View {
 
     private var propertiesBar: some View {
         HStack(spacing: 10) {
-            if mode != .redact {
+            if mode != .redact && model.selectedTakesColor {
                 ForEach(EditorModel.palette, id: \.self) { hex in
                     Button { model.applyColor(hex) } label: {
                         Circle().fill(Color(hex: hex))
@@ -154,7 +154,10 @@ struct PDFEditorView: View {
                                                      lineWidth: model.selected?.colorHex == hex ? 3 : 1))
                     }
                     .accessibilityLabel(hex)
+                    .accessibilityIdentifier("palette.\(hex)")
                 }
+            }
+            if mode != .redact {
                 if let range = sizeRange {
                     Slider(value: Binding(get: { currentSize }, set: { model.applySize($0) }), in: range)
                         .frame(minWidth: 80)
