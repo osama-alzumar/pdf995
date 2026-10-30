@@ -17,15 +17,15 @@ struct ComparisonView: View {
             ForEach(pages) { page in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(lang.t("صفحة \(page.id + 1)", "Page \(page.id + 1)")).font(.headline)
+                        Text(lang.t("صفحة \(page.id + 1)", "Page \(page.id + 1)")).font(.app(.headline, .bold))
                         Spacer()
                         if !page.summary.isIdentical {
                             Text("+\(page.summary.insertedWords)  −\(page.summary.deletedWords)")
-                                .font(.caption.monospacedDigit()).foregroundStyle(Theme.secondaryText)
+                                .font(.app(.caption).monospacedDigit()).foregroundStyle(Theme.secondaryText)
                         }
                     }
                     Text(attributed(page.segments))
-                        .font(.body)
+                        .font(.app(.body))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -55,8 +55,8 @@ struct ComparisonView: View {
 
     private func stat(_ value: String, _ label: String, _ color: Color = .primary) -> some View {
         VStack(spacing: 2) {
-            Text(value).font(.headline.monospacedDigit()).foregroundStyle(color)
-            Text(label).font(.caption2).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
+            Text(value).font(.app(.headline, .bold).monospacedDigit()).foregroundStyle(color)
+            Text(label).font(.app(.caption2)).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)

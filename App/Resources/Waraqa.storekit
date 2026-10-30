@@ -1,0 +1,83 @@
+{
+  "identifier": "9A7E2C14-5B1D-4E8F-A3C2-7D6B1E0F4A21",
+  "nonRenewingSubscriptions": [],
+  "products": [
+    {
+      "displayPrice": "0.99",
+      "familyShareable": false,
+      "internalID": "6827100001",
+      "localizations": [
+        {
+          "description": "حماية مستند واحد حتى 20 صفحة.",
+          "displayName": "حماية مستند",
+          "locale": "ar"
+        }
+      ],
+      "productID": "app.waraqa.ios.credit1",
+      "referenceName": "Protect One Document",
+      "type": "Consumable"
+    }
+  ],
+  "settings": {
+    "_applicationInternalID": "6827031337",
+    "_failTransactionsEnabled": false,
+    "_locale": "ar",
+    "_storefront": "SAU",
+    "_storeKitErrors": []
+  },
+  "subscriptionGroups": [
+    {
+      "id": "21800001",
+      "localizations": [],
+      "name": "Waraqa Plus",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "9.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "6827100002",
+          "localizations": [
+            {
+              "description": "30 مستنداً شهرياً وكل الأنماط والمشاركة الآمنة.",
+              "displayName": "ورقة بلس الشهري",
+              "locale": "ar"
+            }
+          ],
+          "productID": "app.waraqa.ios.plus.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "Plus Monthly",
+          "subscriptionGroupID": "21800001",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "79.0",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "6827100003",
+          "localizations": [
+            {
+              "description": "مزايا الاشتراك الشهري لمدة سنة.",
+              "displayName": "ورقة بلس السنوي",
+              "locale": "ar"
+            }
+          ],
+          "productID": "app.waraqa.ios.plus.yearly",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "Plus Yearly",
+          "subscriptionGroupID": "21800001",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        }
+      ]
+    }
+  ],
+  "version": {
+    "major": 4,
+    "minor": 0
+  }
+}

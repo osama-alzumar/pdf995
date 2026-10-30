@@ -99,8 +99,8 @@ struct ToolView: View {
         HStack(spacing: 14) {
             ToolIcon(tool: tool, size: 52)
             VStack(alignment: .leading, spacing: 4) {
-                Text(lang.t(tool.title)).font(.title2.weight(.bold))
-                Text(lang.t(tool.subtitle)).font(.subheadline).foregroundStyle(Theme.secondaryText)
+                Text(lang.t(tool.title)).font(.app(.title2, .bold))
+                Text(lang.t(tool.subtitle)).font(.app(.subheadline)).foregroundStyle(Theme.secondaryText)
             }
         }
         .accessibilityElement(children: .combine)
@@ -153,7 +153,7 @@ struct ToolView: View {
                       systemImage: "lock.iphone")
             }
         }
-        .font(.footnote)
+        .font(.app(.footnote))
         .foregroundStyle(Theme.secondaryText)
     }
 
@@ -186,7 +186,7 @@ struct ToolView: View {
 
     private var hasOptions: Bool {
         [.split, .removePages, .extractPages, .rotate, .compress, .ocr, .scanToPDF, .imagesToPDF, .pdfToImages,
-         .pageNumbers, .watermark, .crop, .protect, .redact, .summarize, .translate].contains(tool.id)
+         .pageNumbers, .watermark, .crop, .protect, .redact, .summarize, .translate, .convertImages, .shrinkImages].contains(tool.id)
     }
 
     private var hint: String? {
@@ -275,8 +275,8 @@ struct RunningView: View {
             ProgressView(value: progress)
                 .progressViewStyle(.linear)
                 .tint(Theme.accent)
-            Text(statusText).font(.headline)
-            Text("\(Int(progress * 100))%").font(.subheadline.monospacedDigit()).foregroundStyle(Theme.secondaryText)
+            Text(statusText).font(.app(.headline, .bold))
+            Text("\(Int(progress * 100))%").font(.app(.subheadline).monospacedDigit()).foregroundStyle(Theme.secondaryText)
             Button(lang.t("إلغاء", "Cancel"), role: .cancel, action: cancel)
                 .buttonStyle(.bordered)
         }
@@ -307,7 +307,7 @@ struct FailureView: View {
                 .font(.system(size: 44))
                 .foregroundStyle(error == .cancelled ? Color.secondary : Color.orange)
                 .accessibilityHidden(true)
-            Text(lang.t(error.message)).font(.body).multilineTextAlignment(.center)
+            Text(lang.t(error.message)).font(.app(.body)).multilineTextAlignment(.center)
             if error.canRetry {
                 PrimaryButton(title: lang.t("إعادة المحاولة", "Try again"), systemImage: "arrow.clockwise", action: retry)
             }
@@ -333,7 +333,7 @@ struct UploadNoticeSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Label(lang.t("رفع الملف للمعالجة", "Upload for processing"), systemImage: "icloud.and.arrow.up")
-                .font(.title3.weight(.bold))
+                .font(.app(.title3, .bold))
             VStack(alignment: .leading, spacing: 8) {
                 bullet(lang.t("هذه الأداة لا يمكن تنفيذها على الجهاز بجودة كافية، لذا يُرسل الملف إلى خادم ورقة.",
                               "This tool can't run on the device with enough quality, so the file is sent to the Waraqa server."))
@@ -352,8 +352,8 @@ struct UploadNoticeSheet: View {
 
     private func bullet(_ text: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.accent).font(.footnote)
-            Text(text).font(.subheadline).fixedSize(horizontal: false, vertical: true)
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.accent).font(.app(.footnote))
+            Text(text).font(.app(.subheadline)).fixedSize(horizontal: false, vertical: true)
         }
     }
 }

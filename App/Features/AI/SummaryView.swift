@@ -12,8 +12,8 @@ struct SummaryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 10) {
-                Label(lang.t("الملخص", "Summary"), systemImage: "text.append").font(.headline)
-                Text(summary.overview).font(.body).textSelection(.enabled)
+                Label(lang.t("الملخص", "Summary"), systemImage: "text.append").font(.app(.headline, .bold))
+                Text(summary.overview).font(.app(.body)).textSelection(.enabled)
                 ForEach(summary.points) { point in
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(alignment: .top, spacing: 8) {
@@ -41,10 +41,10 @@ struct CitationRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 6) {
-            Image(systemName: "quote.opening").font(.caption2).foregroundStyle(Theme.secondaryText)
+            Image(systemName: "quote.opening").font(.app(.caption2)).foregroundStyle(Theme.secondaryText)
             Text("«\(citation.quote)» — ") + Text(lang.t("ص \(citation.page)", "p. \(citation.page)")).bold()
         }
-        .font(.caption)
+        .font(.app(.caption))
         .foregroundStyle(Theme.secondaryText)
         .padding(.leading, 14)
         .accessibilityElement(children: .combine)
@@ -70,12 +70,12 @@ struct AskView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label(lang.t("اسأل عن الملف", "Ask about the file"), systemImage: "bubble.left.and.text.bubble.right").font(.headline)
+            Label(lang.t("اسأل عن الملف", "Ask about the file"), systemImage: "bubble.left.and.text.bubble.right").font(.app(.headline, .bold))
             T("يُرسل نص الملف مع كل سؤال إلى خادم المعالجة، ولا يُحفظ هناك.", "The file's text is sent with each question to the processing server and isn't kept there.")
-                .font(.caption).foregroundStyle(Theme.secondaryText)
+                .font(.app(.caption)).foregroundStyle(Theme.secondaryText)
             ForEach(exchanges) { exchange in
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(exchange.question).font(.subheadline.weight(.semibold))
+                    Text(exchange.question).font(.app(.subheadline, .semibold))
                     if let answer = exchange.answer {
                         if answer.found {
                             Text(answer.answer).textSelection(.enabled)
@@ -86,7 +86,7 @@ struct AskView: View {
                                 .foregroundStyle(.orange)
                         }
                     } else if let error = exchange.error {
-                        Text(lang.t(error.message)).foregroundStyle(Theme.danger).font(.footnote)
+                        Text(lang.t(error.message)).foregroundStyle(Theme.danger).font(.app(.footnote))
                     } else {
                         ProgressView()
                     }
@@ -99,7 +99,7 @@ struct AskView: View {
                     .lineLimit(1...4)
                     .padding(10)
                     .background(Theme.subtleFill, in: RoundedRectangle(cornerRadius: Theme.smallRadius))
-                Button { ask() } label: { Image(systemName: "arrow.up.circle.fill").font(.title) }
+                Button { ask() } label: { Image(systemName: "arrow.up.circle.fill").font(.app(.title)) }
                     .disabled(busy || question.trimmingCharacters(in: .whitespaces).isEmpty)
                     .accessibilityLabel(lang.t("إرسال السؤال", "Send question"))
             }

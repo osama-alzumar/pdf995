@@ -56,9 +56,9 @@ struct ResultView: View {
                 .symbolEffect(.bounce, value: output.files.count)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                T("تم بنجاح", "Done").font(.title3.weight(.bold))
+                T("تم بنجاح", "Done").font(.app(.title3, .bold))
                 Text(output.files.count == 1 ? lang.t("ملف واحد جاهز", "1 file ready") : lang.t("\(output.files.count) ملفات جاهزة", "\(output.files.count) files ready"))
-                    .font(.subheadline).foregroundStyle(Theme.secondaryText)
+                    .font(.app(.subheadline)).foregroundStyle(Theme.secondaryText)
             }
         }
         .accessibilityElement(children: .combine)
@@ -69,11 +69,11 @@ struct ResultView: View {
             ForEach(output.files.prefix(30), id: \.self) { url in
                 Button { previewURL = url } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: icon(for: url)).font(.title2).foregroundStyle(Theme.accent).frame(width: 32)
+                        Image(systemName: icon(for: url)).font(.app(.title2)).foregroundStyle(Theme.accent).frame(width: 32)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(url.lastPathComponent).font(.subheadline.weight(.medium)).foregroundStyle(.primary)
+                            Text(url.lastPathComponent).font(.app(.subheadline, .medium)).foregroundStyle(.primary)
                                 .lineLimit(2).multilineTextAlignment(.leading)
-                            Text(ByteSize.format(size(of: url), language: lang)).font(.caption).foregroundStyle(Theme.secondaryText)
+                            Text(ByteSize.format(size(of: url), language: lang)).font(.app(.caption)).foregroundStyle(Theme.secondaryText)
                         }
                         Spacer()
                         Image(systemName: "eye").foregroundStyle(.secondary)
@@ -86,7 +86,7 @@ struct ResultView: View {
             }
             if output.files.count > 30 {
                 Text(lang.t("و\(output.files.count - 30) ملفات أخرى", "and \(output.files.count - 30) more"))
-                    .font(.footnote).foregroundStyle(Theme.secondaryText)
+                    .font(.app(.footnote)).foregroundStyle(Theme.secondaryText)
             }
         }
     }
@@ -109,7 +109,7 @@ struct ResultView: View {
                     showNextTool = true
                 }
             }
-            T("محفوظ أيضاً في «ملفاتي».", "Also kept in “My files”.").font(.caption).foregroundStyle(Theme.secondaryText)
+            T("محفوظ أيضاً في «ملفاتي».", "Also kept in “My files”.").font(.app(.caption)).foregroundStyle(Theme.secondaryText)
         }
     }
 
@@ -208,11 +208,11 @@ struct CompressionSummary: View {
             if report.isSmaller {
                 Text(lang.t("وفّرت \(report.savedPercent)٪ (\(ByteSize.format(report.savedBytes, language: lang)))",
                             "Saved \(report.savedPercent)% (\(ByteSize.format(report.savedBytes)))"))
-                    .font(.headline).foregroundStyle(Theme.success)
+                    .font(.app(.headline, .bold)).foregroundStyle(Theme.success)
             } else {
                 Text(lang.t("الملف مضغوط مسبقاً؛ لم يكن ممكناً تصغيره بهذا المستوى، فاحتفظنا بالنسخة الأصلية.",
                             "The file is already compact; it couldn't be made smaller at this level, so the original was kept."))
-                    .font(.subheadline).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
+                    .font(.app(.subheadline)).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
             }
         }
         .padding(16)
@@ -223,8 +223,8 @@ struct CompressionSummary: View {
 
     private func stat(_ title: String, _ value: String) -> some View {
         VStack(spacing: 2) {
-            Text(title).font(.caption).foregroundStyle(Theme.secondaryText)
-            Text(value).font(.title3.weight(.semibold).monospacedDigit())
+            Text(title).font(.app(.caption)).foregroundStyle(Theme.secondaryText)
+            Text(value).font(.app(.title3, .semibold).monospacedDigit())
         }
         .frame(maxWidth: .infinity)
     }
@@ -239,7 +239,7 @@ struct TextResult: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(title).font(.headline)
+                Text(title).font(.app(.headline, .bold))
                 Spacer()
                 Button {
                     UIPasteboard.general.string = text
@@ -251,7 +251,7 @@ struct TextResult: View {
             }
             ScrollView {
                 Text(text.isEmpty ? lang.t("لا يوجد نص.", "No text.") : text)
-                    .font(.body)
+                    .font(.app(.body))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

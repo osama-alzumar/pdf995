@@ -20,11 +20,11 @@ from typing import Literal
 from urllib.parse import quote
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
-from . import ai, errors, storage
+from . import ai, errors, shares, storage
 from .config import settings
 from .tools import from_pdf, office, pdf_tools
 from .tools.common import validate_pdf
@@ -36,6 +36,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 async def lifespan(_: FastAPI):
     storage.sweep_once(0)  # nothing from a previous run survives a restart
     storage.start_sweeper()
+    if settings.shares_enabled:
+        def purge_loop() -> None:
+            while True:
+                try:
+                    shares.purge()
+                except Exception:
+                    log.exception("share purge failed")
+                time.sleep(60)
+        threading.Thread(target=purge_loop, name="waraqa-share-purge", daemon=True).start()
     yield
 
 
@@ -81,7 +90,7 @@ def _rate_limit(request: Request) -> None:
 
 @app.get("/v1/health")
 def health():
-    return {"status": "ok", "tools": TOOLS, "ai": settings.ai_enabled,
+    return {"status": "ok", "tools": TOOLS, "ai": settings.ai_enabled, "shares": settings.shares_enabled,
             "retention_minutes": settings.retention_minutes, "max_upload_mb": settings.max_upload_mb}
 
 
@@ -233,3 +242,61 @@ def ai_ask(body: AskBody, request: Request):
 def ai_translate(body: TranslateBody, request: Request):
     _rate_limit(request)
     return ai.translate(_check_size(body.pages), body.target)
+
+
+# ------------------------------------------------------------------ secure share links
+
+PRIVATE_HEADERS = {
+    "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY",
+    "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'",
+}
+
+
+@app.post("/v1/shares")
+async def create_share(request: Request):
+    _rate_limit(request)
+    if not settings.shares_enabled:
+        raise errors.ToolError("shares_disabled", "المشاركة عبر الرابط غير مفعّلة على الخادم.",
+                               "Link sharing is not enabled on the server.", 503)
+    work = storage.new_job_dir()
+    try:
+        files, options = await _receive_files(request, work)
+        result = shares.create(files[0], options.get("recipient", ""), options.get("purpose", ""),
+                               int(options.get("expires_in", "86400") or 0), int(options.get("max_views", "3") or 1),
+                               options.get("allow_download") == "1")
+    except ValueError:
+        raise errors.ToolError("bad_request", "بيانات غير صحيحة.", "Invalid request.", 400)
+    finally:
+        storage.remove(work)
+    log.info("share created pages_ok")
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/v1/shares/{share_id}")
+def share_status(share_id: str, request: Request):
+    return JSONResponse(shares.status(share_id, request.headers.get("x-owner-token", "")), headers={"Cache-Control": "no-store"})
+
+
+@app.delete("/v1/shares/{share_id}")
+def share_revoke(share_id: str, request: Request):
+    return JSONResponse(shares.revoke(share_id, request.headers.get("x-owner-token", "")), headers={"Cache-Control": "no-store"})
+
+
+@app.get("/s/{share_id}")
+def share_view(share_id: str):
+    if not settings.shares_enabled:
+        return HTMLResponse("<h1>غير متاح</h1>", status_code=503, headers=PRIVATE_HEADERS)
+    body, code = shares.render_view(share_id)
+    return HTMLResponse(body, status_code=code, headers=PRIVATE_HEADERS)
+
+
+@app.get("/s/{share_id}/p/{page}")
+def share_page(share_id: str, page: int, v: str = ""):
+    return Response(shares.page_png(share_id, page, v), media_type="image/png", headers=PRIVATE_HEADERS)
+
+
+@app.get("/s/{share_id}/download")
+def share_download(share_id: str, v: str = ""):
+    headers = dict(PRIVATE_HEADERS, **{"Content-Disposition": "attachment; filename=\"waraqa-shared.pdf\""})
+    return Response(shares.download(share_id, v), media_type="application/pdf", headers=headers)

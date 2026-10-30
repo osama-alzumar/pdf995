@@ -59,7 +59,7 @@ struct FormsView: View {
             Text(fieldCount == 0
                  ? lang.t("لا توجد حقول قابلة للتعبئة. أضف حقولاً ثم اضغط عليها لتعبئتها.", "No fillable fields. Add fields, then tap them to fill.")
                  : lang.t("اضغط على أي حقل لتعبئته (\(fieldCount) حقل).", "Tap any field to fill it (\(fieldCount) fields)."))
-                .font(.footnote).foregroundStyle(Theme.secondaryText)
+                .font(.app(.footnote)).foregroundStyle(Theme.secondaryText)
             HStack(spacing: 10) {
                 Button { addMode = addMode == .text ? nil : .text } label: {
                     Label(lang.t("حقل نصي", "Text field"), systemImage: "character.cursor.ibeam")
@@ -71,7 +71,7 @@ struct FormsView: View {
                 .buttonStyle(.bordered).tint(addMode == .checkbox ? Theme.accent : .secondary)
             }
             if addMode != nil {
-                T("اضغط على الصفحة حيث تريد الحقل.", "Tap the page where the field should go.").font(.footnote).foregroundStyle(Theme.accent)
+                T("اضغط على الصفحة حيث تريد الحقل.", "Tap the page where the field should go.").font(.app(.footnote)).foregroundStyle(Theme.accent)
             }
         }
         .padding(12)

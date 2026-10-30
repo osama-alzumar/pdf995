@@ -17,12 +17,16 @@ public enum ToolID: String, CaseIterable, Codable, Sendable, Identifiable {
     case unlock, protect, sign, redact, compare
     // AI
     case summarize, translate, intelligence
+    // Images
+    case convertImages, shrinkImages
+    // Protection
+    case removeWatermark
 
     public var id: String { rawValue }
 }
 
 public enum ToolCategory: String, CaseIterable, Codable, Sendable, Identifiable {
-    case organize, optimize, convertToPDF, convertFromPDF, edit, security, ai
+    case organize, optimize, convertToPDF, convertFromPDF, edit, images, security, ai
 
     public var id: String { rawValue }
 
@@ -33,6 +37,7 @@ public enum ToolCategory: String, CaseIterable, Codable, Sendable, Identifiable 
         case .convertToPDF: LocalizedText("التحويل إلى PDF", "Convert to PDF")
         case .convertFromPDF: LocalizedText("التحويل من PDF", "Convert from PDF")
         case .edit: LocalizedText("تعديل PDF", "Edit PDF")
+        case .images: LocalizedText("أدوات الصور", "Image tools")
         case .security: LocalizedText("الحماية والتوقيع", "Security & signing")
         case .ai: LocalizedText("الذكاء الاصطناعي", "AI")
         }
@@ -45,6 +50,7 @@ public enum ToolCategory: String, CaseIterable, Codable, Sendable, Identifiable 
         case .convertToPDF: "arrow.down.doc"
         case .convertFromPDF: "arrow.up.doc"
         case .edit: "pencil.and.outline"
+        case .images: "photo"
         case .security: "lock.shield"
         case .ai: "sparkles"
         }
@@ -89,6 +95,12 @@ public struct ToolInfo: Sendable, Identifiable, Hashable {
 
 public enum ToolCatalog {
     public static let quickTools: [ToolID] = [.merge, .compress, .pdfToWord, .imagesToPDF]
+
+    /// The file tools shown first in the "PDF tools" tab, in the order of the product brief.
+    public static let featured: [ToolID] = [
+        .imagesToPDF, .pdfToImages, .merge, .split, .compress, .organize, .rotate, .removePages, .extractPages,
+        .wordToPDF, .pdfToWord, .sign, .pageNumbers, .crop, .convertImages, .shrinkImages, .watermark, .removeWatermark,
+    ]
 
     public static func info(_ id: ToolID) -> ToolInfo {
         all.first { $0.id == id }!
@@ -282,5 +294,24 @@ public enum ToolCatalog {
                  subtitle: LocalizedText("أسئلة وإجابات من نص الملف", "Answers grounded in the file"),
                  symbol: "bubble.left.and.text.bubble.right", input: .singlePDF, execution: .server,
                  keywords: ["سؤال", "تحليل", "استخراج", "ذكاء", "question", "ask", "analyze", "chat"]),
+
+        // MARK: Images
+        ToolInfo(id: .convertImages, category: .images,
+                 title: LocalizedText("تحويل صيغ الصور", "Convert images"),
+                 subtitle: LocalizedText("بين JPG و PNG و HEIC", "Between JPG, PNG and HEIC"),
+                 symbol: "arrow.left.arrow.right.square", input: .images, execution: .onDevice,
+                 keywords: ["صيغة", "jpg", "png", "heic", "تحويل", "format", "convert"]),
+        ToolInfo(id: .shrinkImages, category: .images,
+                 title: LocalizedText("تقليل حجم الصور", "Shrink images"),
+                 subtitle: LocalizedText("صور أخف للإرسال", "Lighter images for sending"),
+                 symbol: "photo.badge.arrow.down", input: .images, execution: .onDevice,
+                 keywords: ["حجم", "تصغير", "ضغط", "resize", "smaller", "compress"]),
+
+        // MARK: Protection
+        ToolInfo(id: .removeWatermark, category: .security,
+                 title: LocalizedText("إزالة علامة ورقة", "Remove Waraqa mark"),
+                 subtitle: LocalizedText("استرجع النسخة الأصلية المحفوظة", "Get back the saved original"),
+                 symbol: "drop.halffull", input: .singlePDF, execution: .onDevice,
+                 keywords: ["إزالة", "علامة", "أصل", "remove", "original", "watermark"]),
     ]
 }

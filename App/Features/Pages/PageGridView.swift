@@ -20,13 +20,13 @@ struct PageGridView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(title).font(.headline)
+                Text(title).font(.app(.headline, .bold))
                 Spacer()
                 if mode == .select && pageCount > 0 {
                     Button(selection.count == pageCount ? lang.t("إلغاء التحديد", "Deselect all") : lang.t("تحديد الكل", "Select all")) {
                         selection = selection.count == pageCount ? [] : Set(0..<pageCount)
                     }
-                    .font(.subheadline)
+                    .font(.app(.subheadline))
                 }
             }
             LazyVGrid(columns: columns, spacing: 12) {
@@ -65,9 +65,9 @@ struct PageGridView: View {
             if mode == .reorder {
                 HStack {
                     T("اسحب الصفحات لترتيبها، واضغط مطولاً للتدوير أو الحذف.", "Drag pages to reorder; long-press to rotate or remove.")
-                        .font(.footnote).foregroundStyle(Theme.secondaryText)
+                        .font(.app(.footnote)).foregroundStyle(Theme.secondaryText)
                     Spacer()
-                    Button(lang.t("إعادة الضبط", "Reset")) { resetOrder() }.font(.footnote)
+                    Button(lang.t("إعادة الضبط", "Reset")) { resetOrder() }.font(.app(.footnote))
                 }
             }
         }
@@ -95,14 +95,14 @@ struct PageGridView: View {
                 .overlay(alignment: .topTrailing) {
                     if mode == .select {
                         Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
+                            .font(.app(.title3))
                             .foregroundStyle(selected ? Theme.accent : .secondary)
                             .background(Circle().fill(Color(uiColor: .systemBackground)))
                             .padding(4)
                     }
                     if mode == .reorder {
                         Button { rotate(index) } label: {
-                            Image(systemName: "rotate.right").font(.caption.weight(.bold))
+                            Image(systemName: "rotate.right").font(.app(.caption, .bold))
                                 .padding(6).background(.thinMaterial, in: Circle())
                         }
                         .padding(4)
@@ -110,7 +110,7 @@ struct PageGridView: View {
                     }
                 }
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(selected ? Theme.accent : .clear, lineWidth: 3))
-            Text("\(label)").font(.caption.monospacedDigit()).foregroundStyle(Theme.secondaryText)
+            Text("\(label)").font(.app(.caption).monospacedDigit()).foregroundStyle(Theme.secondaryText)
         }
         .contentShape(Rectangle())
         .onTapGesture {

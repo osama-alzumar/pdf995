@@ -80,7 +80,7 @@ struct FileInputSection: View {
 
     private var webField: some View {
         VStack(alignment: .leading, spacing: 6) {
-            T("رابط الصفحة", "Page address").font(.subheadline.weight(.semibold))
+            T("رابط الصفحة", "Page address").font(.app(.subheadline, .semibold))
             TextField("https://", text: $webURL)
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
@@ -88,7 +88,7 @@ struct FileInputSection: View {
                 .environment(\.layoutDirection, .leftToRight)
                 .padding(12)
                 .background(Theme.subtleFill, in: RoundedRectangle(cornerRadius: Theme.smallRadius))
-            T("أو اختر ملف HTML من الملفات.", "Or pick an HTML file.").font(.footnote).foregroundStyle(Theme.secondaryText)
+            T("أو اختر ملف HTML من الملفات.", "Or pick an HTML file.").font(.app(.footnote)).foregroundStyle(Theme.secondaryText)
         }
     }
 
@@ -98,7 +98,7 @@ struct FileInputSection: View {
                 HStack(spacing: 12) {
                     FileThumbnail(file: file)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(file.name).font(.subheadline.weight(.medium)).lineLimit(2)
+                        Text(file.name).font(.app(.subheadline, .medium)).lineLimit(2)
                         HStack(spacing: 6) {
                             Text(ByteSize.format(file.size, language: lang))
                             if file.isPDF, let count = try? PDFEngine.pageCount(file.url, password: file.password) {
@@ -107,7 +107,7 @@ struct FileInputSection: View {
                             }
                             if file.password != nil { Image(systemName: "lock.open").accessibilityLabel(lang.t("تم فتح الحماية", "Unlocked")) }
                         }
-                        .font(.caption).foregroundStyle(Theme.secondaryText)
+                        .font(.app(.caption)).foregroundStyle(Theme.secondaryText)
                     }
                     Spacer()
                     if tool.input == .multiplePDFs || tool.input == .images {
@@ -120,7 +120,7 @@ struct FileInputSection: View {
                                 .accessibilityLabel(lang.t("تحريك لأسفل", "Move down"))
                         }
                         .buttonStyle(.borderless)
-                        .font(.caption)
+                        .font(.app(.caption))
                     }
                     Button(role: .destructive) { files.remove(at: index) } label: {
                         Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
@@ -133,7 +133,7 @@ struct FileInputSection: View {
             }
             if tool.input == .twoPDFs && files.count == 2 {
                 T("الأول: النسخة القديمة — الثاني: النسخة الجديدة", "First: old version — second: new version")
-                    .font(.caption).foregroundStyle(Theme.secondaryText)
+                    .font(.app(.caption)).foregroundStyle(Theme.secondaryText)
             }
         }
     }
@@ -170,8 +170,8 @@ struct FileInputSection: View {
 
     private func addLabel(_ title: String, _ symbol: String) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: symbol).font(.title3)
-            Text(title).font(.body.weight(.semibold))
+            Image(systemName: symbol).font(.app(.title3))
+            Text(title).font(.app(.body, .semibold))
             Spacer()
         }
         .foregroundStyle(Theme.accent)
@@ -261,7 +261,7 @@ struct FileThumbnail: View {
                 Image(uiImage: image).resizable().scaledToFit()
             } else {
                 Image(systemName: file.isPDF ? "doc.richtext" : "doc")
-                    .font(.title2).foregroundStyle(.secondary)
+                    .font(.app(.title2)).foregroundStyle(.secondary)
             }
         }
         .frame(width: 44, height: 56)

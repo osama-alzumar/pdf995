@@ -32,6 +32,11 @@ targets:
     platform: iOS
     sources:
       - path: App
+        excludes:
+          - "Resources/Waraqa.storekit"
+          - "Resources/Fonts/OFL.txt"
+      - path: App/Resources/Waraqa.storekit
+        buildPhase: none
     dependencies:
       - package: WaraqaKit
         product: WaraqaCore
@@ -52,6 +57,8 @@ targets:
         WaraqaSupportEmail: $(WARAQA_SUPPORT_EMAIL)
         NSCameraUsageDescription: تستخدم ورقة الكاميرا فقط عندما تختار تصوير مستند لتحويله إلى PDF.
         NSPhotoLibraryAddUsageDescription: تحتاج ورقة هذا الإذن فقط عندما تختار حفظ صورة ناتجة في تطبيق الصور.
+        NSFaceIDUsageDescription: تستخدم ورقة Face ID لفتح «مستنداتي» المشفّرة على جهازك فقط.
+        UIAppFonts: [Tajawal-Regular.ttf, Tajawal-Medium.ttf, Tajawal-Bold.ttf, Tajawal-ExtraBold.ttf]
         # Files shared to Waraqa are copied in ("Copy to Waraqa"); originals are never edited.
         LSSupportsOpeningDocumentsInPlace: false
         UISupportsDocumentBrowser: false
@@ -123,6 +130,7 @@ schemes:
         WaraqaUITests: [test]
     run:
       config: Debug
+      storeKitConfiguration: App/Resources/Waraqa.storekit
     test:
       config: Debug
       targets:

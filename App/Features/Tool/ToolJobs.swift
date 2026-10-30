@@ -31,6 +31,9 @@ struct ToolOptions: Sendable {
     var editItems: [EditItem] = []
     var webURL = ""
     var makeSearchable = true
+    var imageOutFormat: PDFEngine.ImageOutputFormat = .jpeg
+    var imageQuality: Double = 0.85
+    var shrinkMaxPixels = 2000
 
     enum SplitChoice: String, CaseIterable, Identifiable {
         case everyPage, everyN, ranges
@@ -262,6 +265,17 @@ enum ToolJobs {
             let result = try PDFEngine.compare(input, PDFInput(url: files[1].url, password: files[1].password))
             return ToolOutput(files: [], extra: .comparison(result))
 
+        case .convertImages:
+            let results = try PDFEngine.convertImages(files.map(\.url), to: options.imageOutFormat, quality: options.imageQuality,
+                                                      into: out, progress: progress)
+            return ToolOutput(files: results.map(\.url), extra: imageReport(results, context.language))
+
+        case .shrinkImages:
+            let results = try PDFEngine.shrinkImages(files.map(\.url), maxPixels: options.shrinkMaxPixels, quality: 0.7,
+                                                     into: out, progress: progress)
+            let before = results.reduce(Int64(0)) { $0 + $1.originalBytes }, after = results.reduce(Int64(0)) { $0 + $1.newBytes }
+            return ToolOutput(files: results.map(\.url), extra: .compression(CompressionReport(originalBytes: before, compressedBytes: after)))
+
         case .forms:
             // The form is filled in place in the viewer; the screen hands over the saved copy.
             return ToolOutput(files: files.map(\.url))
@@ -373,6 +387,13 @@ enum ToolJobs {
         return ToolOutput(files: [target], extra: .info(LocalizedText(
             "يتم حفظ الصفحة كما تظهر للطباعة؛ قد تختلف بعض العناصر التفاعلية.",
             "The page is saved as it prints; some interactive elements may differ.")))
+    }
+
+    static func imageReport(_ results: [PDFEngine.ImageResult], _ lang: AppLanguage) -> ToolExtra {
+        let before = results.reduce(Int64(0)) { $0 + $1.originalBytes }, after = results.reduce(Int64(0)) { $0 + $1.newBytes }
+        return .info(LocalizedText(
+            "تم تحويل \(results.count) صورة: \(ByteSize.format(before, language: .arabic)) ← \(ByteSize.format(after, language: .arabic)). أُزيلت بيانات الموقع من الصور.",
+            "Converted \(results.count) image(s): \(ByteSize.format(before)) → \(ByteSize.format(after)). Location data was removed."))
     }
 
     static func describe(_ error: PageSelection.ParseError, _ lang: AppLanguage) -> String {

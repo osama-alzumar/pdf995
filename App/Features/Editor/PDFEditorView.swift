@@ -126,8 +126,8 @@ struct PDFEditorView: View {
                 ForEach(tools) { tool in
                     Button { model.tool = tool; if tool != .select { model.selectedID = nil } } label: {
                         VStack(spacing: 4) {
-                            Image(systemName: tool.symbol).font(.title3)
-                            Text(lang.t(tool.title)).font(.caption2)
+                            Image(systemName: tool.symbol).font(.app(.title3))
+                            Text(lang.t(tool.title)).font(.app(.caption2))
                         }
                         .frame(minWidth: 58, minHeight: 50)
                         .foregroundStyle(model.tool == tool ? Color.white : Color.primary)

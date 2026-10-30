@@ -29,6 +29,8 @@ struct ToolOptionsView: View {
             case .redact: redact
             case .summarize: summary
             case .translate: translate
+            case .convertImages: convertImages
+            case .shrinkImages: shrinkImages
             default: EmptyView()
             }
         }
@@ -57,7 +59,7 @@ struct ToolOptionsView: View {
 
     private func pagesField(_ title: String, placeholder: String = "1-3, 5, 8") -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.subheadline.weight(.semibold))
+            Text(title).font(.app(.subheadline, .semibold))
             TextField(placeholder, text: $options.pageText)
                 .keyboardType(.numbersAndPunctuation)
                 .environment(\.layoutDirection, .leftToRight)
@@ -65,10 +67,10 @@ struct ToolOptionsView: View {
                 .background(Theme.subtleFill, in: RoundedRectangle(cornerRadius: Theme.smallRadius))
             if !options.selectedPages.isEmpty {
                 Text(lang.t("محدد من المعاينة: ", "Selected in preview: ") + PageSelection.describe(Array(options.selectedPages)))
-                    .font(.footnote).foregroundStyle(Theme.accent)
+                    .font(.app(.footnote)).foregroundStyle(Theme.accent)
             } else {
                 T("اكتب الأرقام، أو اضغط على الصفحات في المعاينة لتحديدها.", "Type numbers, or tap pages in the preview to select them.")
-                    .font(.footnote).foregroundStyle(Theme.secondaryText)
+                    .font(.app(.footnote)).foregroundStyle(Theme.secondaryText)
             }
         }
     }
@@ -96,8 +98,8 @@ struct ToolOptionsView: View {
                         Image(systemName: options.compression == level ? "largecircle.fill.circle" : "circle")
                             .foregroundStyle(Theme.accent)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(lang.t(level.title)).font(.body.weight(.medium)).foregroundStyle(.primary)
-                            Text(lang.t(level.detail)).font(.footnote).foregroundStyle(Theme.secondaryText)
+                            Text(lang.t(level.title)).font(.app(.body, .medium)).foregroundStyle(.primary)
+                            Text(lang.t(level.detail)).font(.app(.footnote)).foregroundStyle(Theme.secondaryText)
                         }
                         Spacer()
                     }
@@ -116,7 +118,7 @@ struct ToolOptionsView: View {
                 Toggle(lang.t("اجعل النص قابلاً للبحث والنسخ", "Make text searchable and copyable"), isOn: $options.makeSearchable)
             }
             if tool == .ocr || options.makeSearchable {
-                T("لغة المستند", "Document language").font(.subheadline.weight(.semibold))
+                T("لغة المستند", "Document language").font(.app(.subheadline, .semibold))
                 Toggle(lang.t("العربية", "Arabic"), isOn: $options.ocrArabic)
                 Toggle(lang.t("الإنجليزية", "English"), isOn: $options.ocrEnglish)
                 if options.ocrArabic && !OCREngine.supportsArabic() {
@@ -259,16 +261,16 @@ struct ToolOptionsView: View {
                 .textContentType(.newPassword)
                 .padding(12).background(Theme.subtleFill, in: RoundedRectangle(cornerRadius: Theme.smallRadius))
             if !options.confirmPassword.isEmpty && options.newPassword != options.confirmPassword {
-                T("كلمتا المرور غير متطابقتين.", "The passwords don't match.").font(.footnote).foregroundStyle(Theme.danger)
+                T("كلمتا المرور غير متطابقتين.", "The passwords don't match.").font(.app(.footnote)).foregroundStyle(Theme.danger)
             } else if !options.newPassword.isEmpty && options.newPassword.count < 6 {
-                T("يُنصح بست خانات على الأقل.", "At least six characters are recommended.").font(.footnote).foregroundStyle(.orange)
+                T("يُنصح بست خانات على الأقل.", "At least six characters are recommended.").font(.app(.footnote)).foregroundStyle(.orange)
             }
         }
     }
 
     private var redact: some View {
         VStack(alignment: .leading, spacing: 8) {
-            T("نصوص تريد حذفها (سطر لكل نص)", "Text to remove (one per line)").font(.subheadline.weight(.semibold))
+            T("نصوص تريد حذفها (سطر لكل نص)", "Text to remove (one per line)").font(.app(.subheadline, .semibold))
             TextEditor(text: $options.redactTerms)
                 .frame(minHeight: 80)
                 .scrollContentBackground(.hidden)
@@ -277,13 +279,43 @@ struct ToolOptionsView: View {
             if !options.redactAreas.isEmpty {
                 Text(lang.t("مناطق محددة يدوياً: \(options.redactAreas.values.map(\.count).reduce(0, +))",
                             "Areas marked by hand: \(options.redactAreas.values.map(\.count).reduce(0, +))"))
-                    .font(.footnote).foregroundStyle(Theme.accent)
+                    .font(.app(.footnote)).foregroundStyle(Theme.accent)
             }
             NoteBox(systemImage: "checkmark.shield", text: lang.t(
                 "التنقيح هنا حذف حقيقي: الصفحات المنقحة تُعاد رسمها كصور بلا النص المخفي، ثم يُفحص الملف للتأكد من عدم بقاء النص.",
                 "This is real redaction: affected pages are re-drawn as images without the hidden text, then the file is checked to confirm it's gone."),
                 tint: .green)
         }
+    }
+
+    // MARK: Images
+
+    private var convertImages: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker(lang.t("الصيغة الجديدة", "New format"), selection: $options.imageOutFormat) {
+                Text("JPG").tag(PDFEngine.ImageOutputFormat.jpeg)
+                Text("PNG").tag(PDFEngine.ImageOutputFormat.png)
+                if PDFEngine.canEncode(.heic) { Text("HEIC").tag(PDFEngine.ImageOutputFormat.heic) }
+            }
+            .pickerStyle(.segmented)
+            if options.imageOutFormat != .png {
+                Picker(lang.t("الجودة", "Quality"), selection: $options.imageQuality) {
+                    Text(lang.t("عالية", "High")).tag(0.92)
+                    Text(lang.t("متوازنة", "Balanced")).tag(0.85)
+                    Text(lang.t("أصغر حجماً", "Smaller")).tag(0.7)
+                }
+                .pickerStyle(.segmented)
+            }
+        }
+    }
+
+    private var shrinkImages: some View {
+        Picker(lang.t("الحد الأقصى للأبعاد", "Maximum size"), selection: $options.shrinkMaxPixels) {
+            Text(lang.t("صغير 1200", "Small 1200")).tag(1200)
+            Text(lang.t("متوسط 2000", "Medium 2000")).tag(2000)
+            Text(lang.t("كبير 3000", "Large 3000")).tag(3000)
+        }
+        .pickerStyle(.segmented)
     }
 
     // MARK: AI

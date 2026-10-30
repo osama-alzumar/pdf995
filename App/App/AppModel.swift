@@ -18,7 +18,7 @@ final class AppModel: ObservableObject {
     @Published var launch: ToolLaunch?
     @Published var selectedTab: Tab = .home
 
-    enum Tab: Hashable { case home, files, settings }
+    enum Tab: Hashable { case home, tools, documents, account }
 
     init() {
         language = AppLanguage(rawValue: storedLanguage) ?? .arabic
@@ -52,7 +52,7 @@ final class AppModel: ObservableObject {
 
     func open(_ tool: ToolID, with files: [PickedFile] = []) {
         launch = ToolLaunch(tool: tool, files: files)
-        selectedTab = .home
+        selectedTab = .tools
     }
 }
 

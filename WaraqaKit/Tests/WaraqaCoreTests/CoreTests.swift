@@ -14,6 +14,11 @@ final class CatalogTests: XCTestCase {
         }
     }
 
+    func testFeaturedToolsMatchTheBrief() {
+        XCTAssertEqual(ToolCatalog.featured.count, 18)
+        XCTAssertEqual(Set(ToolCatalog.featured).count, 18)
+    }
+
     func testQuickToolsMatchTheSpec() {
         XCTAssertEqual(ToolCatalog.quickTools, [.merge, .compress, .pdfToWord, .imagesToPDF])
     }

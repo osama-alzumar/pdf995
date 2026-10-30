@@ -23,7 +23,7 @@ struct SignatureSheet: View {
                         HStack {
                             Image(uiImage: image).resizable().scaledToFit().frame(height: 44)
                             Spacer()
-                            T("استخدم التوقيع المحفوظ", "Use saved signature").font(.subheadline.weight(.semibold))
+                            T("استخدم التوقيع المحفوظ", "Use saved signature").font(.app(.subheadline, .semibold))
                         }
                         .padding(12)
                         .background(Theme.subtleFill, in: RoundedRectangle(cornerRadius: Theme.smallRadius))
@@ -57,7 +57,7 @@ struct SignatureSheet: View {
                     }
                 } else {
                     TextField(lang.t("اكتب اسمك", "Type your name"), text: $typed)
-                        .font(.title2)
+                        .font(.app(.title2))
                         .padding(12)
                         .background(Theme.subtleFill, in: RoundedRectangle(cornerRadius: Theme.smallRadius))
                     if !typed.isEmpty {
