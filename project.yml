@@ -22,8 +22,8 @@ settings:
     CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     # https URL of the processing server (backend/). Empty = server tools show "not enabled".
-    WARAQA_SERVER_URL: ""
-    WARAQA_PRIVACY_POLICY_URL: "https://osama-alzumar.github.io/pdf995/privacy.html"
+    WARAQA_SERVER_URL: "https://waraqa.69.62.105.230.sslip.io"
+    WARAQA_PRIVACY_POLICY_URL: "https://waraqa.69.62.105.230.sslip.io/privacy"
     WARAQA_SUPPORT_EMAIL: "amop994@gmail.com"
 
 targets:

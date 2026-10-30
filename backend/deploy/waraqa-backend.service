@@ -7,14 +7,15 @@ After=network.target
 User=waraqa
 WorkingDirectory=/opt/waraqa/backend
 EnvironmentFile=/opt/waraqa/backend/.env
-Environment=WARAQA_WORK_DIR=/var/tmp/waraqa-work
+Environment=WARAQA_WORK_DIR=/var/lib/waraqa/work
 ExecStart=/opt/waraqa/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8765 --proxy-headers
 Restart=always
 # Hardening: no home, private tmp, read-only system.
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/var/tmp/waraqa-work
+ReadWritePaths=/var/lib/waraqa
 ProtectHome=true
+Environment=HOME=/var/lib/waraqa/work
 NoNewPrivileges=true
 
 [Install]

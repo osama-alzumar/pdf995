@@ -28,11 +28,11 @@ struct PlansView: View {
                         }
                     }
                     plan(PurchaseStore.ProductID.yearly, lang.t("الاشتراك السنوي", "Yearly"),
-                         lang.t("\(PlanRules.monthlyAllowance) مستنداً شهرياً، كل الأنماط والقوالب، والمشاركة الآمنة وفق سياسة الاستخدام — لمدة سنة.",
-                                "\(PlanRules.monthlyAllowance) documents a month, every style and template, and secure sharing — for a year."))
+                         lang.t("جميع أدوات PDF والتحويل بلا حدود، و\(PlanRules.monthlyAllowance) حماية مستند شهرياً، والمشاركة الآمنة — لمدة سنة.",
+                                "Every PDF and conversion tool without limits, \(PlanRules.monthlyAllowance) protections a month and secure sharing — for a year."))
                     plan(PurchaseStore.ProductID.monthly, lang.t("الاشتراك الشهري", "Monthly"),
-                         lang.t("\(PlanRules.monthlyAllowance) مستنداً شهرياً، كل الأنماط والقوالب، والمشاركة الآمنة وفق سياسة الاستخدام.",
-                                "\(PlanRules.monthlyAllowance) documents a month, every style and template, and secure sharing."))
+                         lang.t("جميع أدوات PDF والتحويل بلا حدود، و\(PlanRules.monthlyAllowance) حماية مستند شهرياً، والمشاركة الآمنة.",
+                                "Every PDF and conversion tool without limits, \(PlanRules.monthlyAllowance) protections a month and secure sharing."))
                     plan(PurchaseStore.ProductID.credit, lang.t("حماية مستند واحد", "Protect one document"),
                          lang.t("مستند واحد حتى \(PlanRules.pagesPerDocument) صفحة. يُستخدم متى شئت ولا ينتهي.",
                                 "One document up to \(PlanRules.pagesPerDocument) pages. Use it any time; it doesn't expire."))
@@ -41,8 +41,8 @@ struct PlansView: View {
                     if let message { Text(message).font(.app(.footnote)).foregroundStyle(Theme.secondaryText) }
                     Button(lang.t("استعادة المشتريات", "Restore purchases")) { Task { await store.restore() } }
                         .font(.app(.footnote, .bold)).frame(maxWidth: .infinity)
-                    Text(lang.t("الاشتراك يتجدد تلقائياً ما لم يُلغَ قبل 24 ساعة على الأقل من نهاية الفترة، ويُدار من إعدادات حساب Apple. الأدوات المحلية الأخرى تبقى مجانية.",
-                                "Subscriptions renew automatically unless cancelled at least 24 hours before the period ends, and are managed in your Apple account settings. The other on-device tools stay free."))
+                    Text(lang.t("الاشتراك يتجدد تلقائياً ما لم يُلغَ قبل 24 ساعة على الأقل من نهاية الفترة، ويُدار من إعدادات حساب Apple. أدوات PDF مجانية أول \(PlanRules.toolTrialDays) أيام من الاستخدام.",
+                                "Subscriptions renew automatically unless cancelled at least 24 hours before the period ends, and are managed in your Apple account settings. The PDF tools are free for the first \(PlanRules.toolTrialDays) days."))
                         .font(.app(.caption)).foregroundStyle(Theme.secondaryText)
                     HStack {
                         Link(lang.t("شروط الاستخدام", "Terms of use"), destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
@@ -147,6 +147,7 @@ struct AccountView: View {
     @AppStorage("showRecents") private var showRecents = true
     @State private var showPlans = false
     @State private var confirmWipe = false
+    @State private var showTranslations = false
     @State private var used: Int64 = 0
 
     var body: some View {
@@ -175,6 +176,15 @@ struct AccountView: View {
                     Toggle(lang.t("اسألني قبل رفع أي ملف لأدوات الخادم", "Ask before uploading for server tools"),
                            isOn: Binding(get: { !app.skipUploadNotice }, set: { app.skipUploadNotice = !$0 }))
                     LabeledContent(lang.t("خادم المعالجة والمشاركة", "Processing & sharing server"), value: serverStatus)
+                }
+
+                if ToolAvailability.certifiedTranslation {
+                    Section(lang.t("الترجمة المعتمدة", "Certified translation")) {
+                        Button { showTranslations = true } label: {
+                            LabeledContent(lang.t("طلبات الترجمة", "Translation orders"),
+                                           value: lang.t("\(TranslationPricing.pricePerPageSAR) ريال للصفحة", "SAR \(TranslationPricing.pricePerPageSAR)/page"))
+                        }
+                    }
                 }
 
                 Section(lang.t("اللغة", "Language")) {
@@ -212,6 +222,7 @@ struct AccountView: View {
             .font(.app(.body))
             .navigationTitle(lang.t("حسابي", "Account"))
             .sheet(isPresented: $showPlans) { PlansView() }
+            .fullScreenCover(isPresented: $showTranslations) { TranslationHubView() }
             .confirmationDialog(lang.t("حذف كل المستندات والملفات والمشاركات من هذا الجهاز؟", "Delete every document, file and share record on this iPhone?"),
                                 isPresented: $confirmWipe, titleVisibility: .visible) {
                 Button(lang.t("حذف الكل", "Delete everything"), role: .destructive) {

@@ -9,6 +9,8 @@ struct ToolView: View {
     @Environment(\.appLanguage) private var lang
     @StateObject private var runner = ToolRunner()
     @ObservedObject private var server = ServerService.shared
+    @ObservedObject private var purchases = PurchaseStore.shared
+    @State private var showPlans = false
 
     let tool: ToolInfo
     @State private var files: [PickedFile]
@@ -138,8 +140,27 @@ struct ToolView: View {
 
         if let hint = hint { NoteBox(systemImage: "info.circle", text: hint) }
 
-        PrimaryButton(title: runTitle, systemImage: runSymbol, isEnabled: canRun) { primaryAction() }
-            .accessibilityHint(canRun ? "" : lang.t("أضف الملف المطلوب أولاً", "Add the required file first"))
+        if ToolTrialStore.shared.allowsTools(purchases.entitlement) {
+            PrimaryButton(title: runTitle, systemImage: runSymbol, isEnabled: canRun) { primaryAction() }
+                .accessibilityHint(canRun ? "" : lang.t("أضف الملف المطلوب أولاً", "Add the required file first"))
+        } else {
+            trialEnded
+        }
+    }
+
+    private var trialEnded: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(lang.t("انتهت التجربة المجانية للأدوات", "The free tools trial has ended"), systemImage: "crown.fill")
+                .font(.app(.headline, .bold)).foregroundStyle(Theme.accent)
+            Text(lang.t("كانت أدوات PDF مجانية لمدة \(PlanRules.toolTrialDays) أيام. اشترك في «ورقة بلس» لاستخدام جميع الأدوات بلا حدود، مع \(PlanRules.monthlyAllowance) حماية شهرياً.",
+                        "The PDF tools were free for \(PlanRules.toolTrialDays) days. Subscribe to Waraqa Plus for unlimited use of every tool, plus \(PlanRules.monthlyAllowance) protections a month."))
+                .font(.app(.subheadline)).fixedSize(horizontal: false, vertical: true)
+            PrimaryButton(title: lang.t("اشترك في ورقة بلس", "Subscribe to Waraqa Plus"), systemImage: "crown") { showPlans = true }
+                .accessibilityIdentifier("tool.subscribe")
+        }
+        .padding(16)
+        .card()
+        .sheet(isPresented: $showPlans) { PlansView() }
     }
 
     private var privacyBadge: some View {

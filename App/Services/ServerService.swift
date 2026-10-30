@@ -72,8 +72,17 @@ final class UploadApproval: @unchecked Sendable {
 /// screen leads to a feature that can't work.
 enum ToolAvailability {
     @MainActor static func isAvailable(_ tool: ToolID) -> Bool {
-        ToolCatalog.info(tool).execution != .server || ServerService.shared.isConfigured
+        let info = ToolCatalog.info(tool)
+        // AI tools also need the server's AI key; hidden until the server reports it.
+        if info.category == .ai {
+            guard case .available(let status) = ServerService.shared.availability else { return false }
+            return status.ai
+        }
+        return info.execution != .server || ServerService.shared.isConfigured
     }
+
+    /// Certified translation orders (needs the server).
+    @MainActor static var certifiedTranslation: Bool { ServerService.shared.isConfigured }
 
     @MainActor static var linkSharing: Bool { ServerService.shared.isConfigured }
 }

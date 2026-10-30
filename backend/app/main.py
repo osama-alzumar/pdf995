@@ -20,11 +20,11 @@ from typing import Literal
 from urllib.parse import quote
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
-from . import ai, errors, shares, storage
+from . import admin, ai, errors, shares, storage, translations
 from .config import settings
 from .tools import from_pdf, office, pdf_tools
 from .tools.common import validate_pdf
@@ -41,8 +41,9 @@ async def lifespan(_: FastAPI):
             while True:
                 try:
                     shares.purge()
+                    translations.purge()
                 except Exception:
-                    log.exception("share purge failed")
+                    log.exception("purge failed")
                 time.sleep(60)
         threading.Thread(target=purge_loop, name="waraqa-share-purge", daemon=True).start()
     yield
@@ -91,12 +92,14 @@ def _rate_limit(request: Request) -> None:
 @app.get("/v1/health")
 def health():
     return {"status": "ok", "tools": TOOLS, "ai": settings.ai_enabled, "shares": settings.shares_enabled,
+            "translation": settings.orders_enabled, "translation_price_sar": settings.translation_price_sar,
             "retention_minutes": settings.retention_minutes, "max_upload_mb": settings.max_upload_mb}
 
 
-async def _receive_files(request: Request, work: Path) -> tuple[list[Path], dict[str, str]]:
+async def _receive_files(request: Request, work: Path, limit: int | None = None) -> tuple[list[Path], dict[str, str]]:
+    limit = limit or settings.max_upload_bytes
     length = int(request.headers.get("content-length") or 0)
-    if length > settings.max_upload_bytes + 1_000_000:
+    if length > limit + 1_000_000:
         raise errors.ToolError("too_large", "الملف أكبر من الحد المسموح.", "The file is too large.", 413)
     form = await request.form(max_files=20, max_fields=20)
     files: list[Path] = []
@@ -110,10 +113,11 @@ async def _receive_files(request: Request, work: Path) -> tuple[list[Path], dict
             with open(target, "wb") as fh:
                 while chunk := await value.read(1 << 20):
                     total += len(chunk)
-                    if total > settings.max_upload_bytes:
+                    if total > limit:
                         raise errors.ToolError("too_large", "الملف أكبر من الحد المسموح.", "The file is too large.", 413)
                     fh.write(chunk)
             files.append(target)
+            options[f"_name{len(files) - 1}"] = name
             if len(files) == 1:
                 first_name = name
         elif not key.startswith("_"):
@@ -300,3 +304,167 @@ def share_page(share_id: str, page: int, v: str = ""):
 def share_download(share_id: str, v: str = ""):
     headers = dict(PRIVATE_HEADERS, **{"Content-Disposition": "attachment; filename=\"waraqa-shared.pdf\""})
     return Response(shares.download(share_id, v), media_type="application/pdf", headers=headers)
+
+
+# ------------------------------------------------------------------ certified translation orders
+
+@app.post("/v1/translations")
+async def create_translation(request: Request):
+    _rate_limit(request)
+    if not settings.orders_enabled:
+        raise errors.ToolError("orders_disabled", "خدمة الترجمة غير مفعّلة حالياً.",
+                               "The translation service is not enabled right now.", 503)
+    work = storage.new_job_dir()
+    try:
+        files, options = await _receive_files(request, work, settings.orders_max_mb * 1_000_000)
+        names = [options.get(f"_name{i}", f.name) for i, f in enumerate(files)]
+        from starlette.concurrency import run_in_threadpool
+        result = await run_in_threadpool(translations.create, files, names, options.get("name", ""),
+                                         options.get("phone", ""), options.get("email", ""),
+                                         options.get("source_language", ""), options.get("target_language", ""),
+                                         options.get("notes", ""))
+    finally:
+        storage.remove(work)
+    log.info("translation order created pages=%d", result["pages"])
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/v1/translations/{order_id}")
+def translation_status(order_id: str, request: Request):
+    order = translations.owned(order_id, request.headers.get("x-owner-token", ""))
+    return JSONResponse(order.public(), headers={"Cache-Control": "no-store"})
+
+
+@app.get("/v1/translations/{order_id}/result")
+def translation_result(order_id: str, request: Request):
+    data, name, media = translations.result_file(order_id, request.headers.get("x-owner-token", ""))
+    ascii_name = name.encode("ascii", "ignore").decode().strip() or "translation"
+    return Response(data, media_type=media, headers={
+        "Cache-Control": "no-store",
+        "Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}"})
+
+
+# ------------------------------------------------------------------ team panel
+
+ADMIN_HEADERS = dict(PRIVATE_HEADERS, **{
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"})
+
+
+def _admin_ok(request: Request) -> bool:
+    return admin.valid_session(request.cookies.get(admin.COOKIE))
+
+
+def _same_origin(request: Request) -> bool:
+    origin = request.headers.get("origin") or request.headers.get("referer") or ""
+    host = request.headers.get("host", "")
+    return bool(host) and (origin.startswith(f"https://{host}") or origin.startswith(f"http://{host}"))
+
+
+def _html(body: str, status: int = 200) -> HTMLResponse:
+    return HTMLResponse(body, status_code=status, headers=ADMIN_HEADERS)
+
+
+def _to_login() -> RedirectResponse:
+    return RedirectResponse("/admin/login", status_code=303)
+
+
+@app.get("/admin/login")
+def admin_login_page():
+    return _html(admin.login_page())
+
+
+@app.post("/admin/login")
+async def admin_login(request: Request):
+    ip = _client_ip(request)
+    if not settings.admin_enabled:
+        return _html(admin.login_page(), 503)
+    if admin.too_many_failures(ip):
+        return _html(admin.login_page("محاولات كثيرة. انتظر ربع ساعة."), 429)
+    form = await request.form(max_files=0, max_fields=3)
+    if not _same_origin(request) or not admin.check_password(str(form.get("password", ""))):
+        admin.record_failure(ip)
+        log.info("admin login failed")
+        return _html(admin.login_page("كلمة المرور غير صحيحة."), 401)
+    response = RedirectResponse("/admin", status_code=303)
+    response.set_cookie(admin.COOKIE, admin.new_session(), max_age=admin.SESSION_SECONDS, httponly=True,
+                        secure=request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https",
+                        samesite="strict", path="/admin")
+    return response
+
+
+@app.post("/admin/logout")
+def admin_logout():
+    response = _to_login()
+    response.delete_cookie(admin.COOKIE, path="/admin")
+    return response
+
+
+@app.get("/admin")
+def admin_orders(request: Request, state: str | None = None):
+    if not _admin_ok(request):
+        return _to_login()
+    return _html(admin.list_page(state if state in translations.STATES else None))
+
+
+@app.get("/admin/orders/{order_id}")
+def admin_order(order_id: str, request: Request, notice: str = ""):
+    if not _admin_ok(request):
+        return _to_login()
+    body = admin.order_page(order_id, {"saved": "تم الحفظ.", "uploaded": "رُفعت الترجمة وأصبحت متاحة للعميل في التطبيق."}.get(notice, ""))
+    return _html(body) if body else _html(admin.page("غير موجود", "<div class='card'>الطلب غير موجود.</div>"), 404)
+
+
+@app.post("/admin/orders/{order_id}")
+async def admin_update(order_id: str, request: Request):
+    if not _admin_ok(request) or not _same_origin(request):
+        return _to_login()
+    form = await request.form(max_files=0, max_fields=8)
+    try:
+        translations.update(order_id, state=str(form.get("state") or "") or None, message=str(form.get("message", "")),
+                            paid=form.get("paid") == "1", price=int(form.get("price") or 0))
+    except errors.ToolError as exc:
+        return _html(admin.page("خطأ", f"<div class='card'>{exc.message_ar}</div><a href='/admin/orders/{order_id}'>رجوع</a>"), 400)
+    return RedirectResponse(f"/admin/orders/{order_id}?notice=saved", status_code=303)
+
+
+@app.post("/admin/orders/{order_id}/result")
+async def admin_result(order_id: str, request: Request):
+    if not _admin_ok(request) or not _same_origin(request):
+        return _to_login()
+    work = storage.new_job_dir()
+    try:
+        files, _ = await _receive_files(request, work, settings.orders_max_mb * 1_000_000)
+        translations.attach_result(order_id, files[0])
+    except errors.ToolError as exc:
+        return _html(admin.page("خطأ", f"<div class='card'>{exc.message_ar}</div><a href='/admin/orders/{order_id}'>رجوع</a>"), 400)
+    finally:
+        storage.remove(work)
+    log.info("translation delivered")
+    return RedirectResponse(f"/admin/orders/{order_id}?notice=uploaded", status_code=303)
+
+
+@app.get("/admin/orders/{order_id}/files/{index}")
+def admin_file(order_id: str, index: int, request: Request):
+    if not _admin_ok(request):
+        return _to_login()
+    data, name = translations.original(order_id, index)
+    ascii_name = name.encode("ascii", "ignore").decode().strip() or "file"
+    return Response(data, media_type="application/octet-stream", headers=dict(ADMIN_HEADERS, **{
+        "Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}"}))
+
+
+# ------------------------------------------------------------------ public pages (privacy / support)
+
+@app.get("/")
+def home():
+    return RedirectResponse("/support", status_code=302)
+
+
+@app.get("/privacy")
+def privacy():
+    return FileResponse(settings.docs_dir / "privacy.html", media_type="text/html; charset=utf-8")
+
+
+@app.get("/support")
+def support():
+    return FileResponse(settings.docs_dir / "support.html", media_type="text/html; charset=utf-8")

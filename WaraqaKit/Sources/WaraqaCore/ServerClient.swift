@@ -208,6 +208,47 @@ public final class ServerClient: @unchecked Sendable {
         return try decode(ShareStatus.self, try await perform(request, bodyFile: nil, progress: nil))
     }
 
+    // MARK: Certified translation orders
+
+    /// Sends the documents to the Waraqa translation team. Only after the user agreed.
+    public func createTranslation(files: [MultipartBody.FilePart], name: String, phone: String, email: String,
+                                  source: CertifiedLanguage, target: CertifiedLanguage, notes: String,
+                                  progress: (@Sendable (Double) -> Void)? = nil) async throws -> CreateTranslationResponse {
+        let base = try requireBase()
+        guard consent() else { throw WaraqaError.serverConsentRequired }
+        let fields = ["name": String(name.prefix(80)), "phone": phone, "email": String(email.prefix(120)),
+                      "source_language": source.rawValue, "target_language": target.rawValue, "notes": String(notes.prefix(1000))]
+        let body = try MultipartBody.write(fields: fields, files: files, to: workDirectory)
+        defer { try? FileManager.default.removeItem(at: body.fileURL) }
+        var request = URLRequest(url: base.appendingPathComponent("v1/translations"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = timeout
+        request.setValue(body.contentType, forHTTPHeaderField: "Content-Type")
+        return try decode(CreateTranslationResponse.self, try await perform(request, bodyFile: body.fileURL, progress: progress))
+    }
+
+    public func translationStatus(id: String, ownerToken: String) async throws -> TranslationOrderStatus {
+        let base = try requireBase()
+        var request = URLRequest(url: base.appendingPathComponent("v1/translations/\(id)"))
+        request.timeoutInterval = 20
+        request.setValue(ownerToken, forHTTPHeaderField: "X-Owner-Token")
+        return try decode(TranslationOrderStatus.self, try await perform(request, bodyFile: nil, progress: nil))
+    }
+
+    /// Downloads the delivered translation into `directory`.
+    public func downloadTranslation(id: String, ownerToken: String, into directory: URL) async throws -> URL {
+        let base = try requireBase()
+        var request = URLRequest(url: base.appendingPathComponent("v1/translations/\(id)/result"))
+        request.timeoutInterval = timeout
+        request.setValue(ownerToken, forHTTPHeaderField: "X-Owner-Token")
+        let response = try await perform(request, bodyFile: nil, progress: nil)
+        let name = Self.fileName(fromContentDisposition: response.headers["content-disposition"]) ?? "translation.pdf"
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent(FileNaming.sanitize(name))
+        do { try response.body.write(to: url, options: .atomic) } catch { throw WaraqaError.notEnoughStorage }
+        return url
+    }
+
     /// JSON request to the AI endpoints. Only extracted text is sent, never the PDF itself.
     public func postJSON<Body: Encodable, Result: Decodable>(_ path: String, body: Body, as: Result.Type) async throws -> Result {
         let base = try requireBase()

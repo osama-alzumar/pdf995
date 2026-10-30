@@ -10,9 +10,11 @@ struct HomeView: View {
     @ObservedObject private var purchases = PurchaseStore.shared
     @ObservedObject private var files = FileStore.shared
     @ObservedObject private var shares = SharesStore.shared
+    @ObservedObject private var server = ServerService.shared
     @AppStorage("showRecents") private var showRecents = true
     @State private var protecting = false
     @State private var protectFiles: [PickedFile] = []
+    @State private var translating = false
 
     private let grid = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
@@ -24,6 +26,7 @@ struct HomeView: View {
                     if !app.incoming.isEmpty { incomingCard }
                     if shares.newOpens > 0 { opensBanner }
                     hero
+                    if ToolAvailability.certifiedTranslation { TranslationCard { translating = true } }
                     tools
                     if showRecents { recents }
                 }
@@ -35,6 +38,7 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $protecting, onDismiss: { protectFiles = [] }) {
             ProtectFlowView(language: lang, files: protectFiles)
         }
+        .fullScreenCover(isPresented: $translating) { TranslationHubView() }
     }
 
     private var header: some View {
@@ -196,6 +200,31 @@ struct ToolsView: View {
     @State private var query = ""
     @State private var path = NavigationPath()
     @State private var showRemoveMark = false
+    // Re-filters the list when the server reports which tools (e.g. AI) it offers.
+    @ObservedObject private var server = ServerService.shared
+    @ObservedObject private var purchases = PurchaseStore.shared
+    @State private var showPlans = false
+
+    @ViewBuilder private var trialBanner: some View {
+        if purchases.entitlement == .free {
+            let days = ToolTrialStore.shared.daysLeft
+            Button { showPlans = true } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: days > 0 ? "gift.fill" : "crown.fill").foregroundStyle(Theme.accent)
+                    Text(days > 0
+                         ? lang.t("جميع الأدوات مجانية — متبقٍ \(days) \(days == 1 ? "يوم" : "أيام") من التجربة", "Every tool is free — \(days) day\(days == 1 ? "" : "s") of trial left")
+                         : lang.t("انتهت التجربة المجانية — اشترك في ورقة بلس", "Free trial ended — subscribe to Waraqa Plus"))
+                        .font(.app(.footnote, .bold)).foregroundStyle(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.forward").foregroundStyle(.tertiary)
+                }
+                .padding(12)
+                .background(Theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.smallRadius))
+            }
+            .buttonStyle(.plain)
+            .sheet(isPresented: $showPlans) { PlansView() }
+        }
+    }
 
     private let grid = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
@@ -210,6 +239,7 @@ struct ToolsView: View {
                     }
                     .padding(12)
                     .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.smallRadius))
+                    trialBanner
                     if !query.trimmingCharacters(in: .whitespaces).isEmpty {
                         let results = ToolSearch.search(query).filter { ToolAvailability.isAvailable($0.id) }
                         if results.isEmpty { T("لا توجد أداة بهذا الاسم.", "No tool matches that.").font(.app(.footnote)) }

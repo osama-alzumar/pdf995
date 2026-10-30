@@ -32,6 +32,14 @@ class Settings:
     share_max_pages: int = int(_env("SHARE_MAX_PAGES", "50"))
     # Rows of finished shares are kept this long so the owner can still see "expired"; then deleted.
     share_keep_days: int = int(_env("SHARE_KEEP_DAYS", "30"))
+    # Certified translation orders (human service). Uses the same master key for encryption.
+    orders_dir: Path = Path(_env("ORDERS_DIR", "/var/lib/waraqa/orders"))
+    translation_price_sar: int = int(_env("TRANSLATION_PRICE_SAR", "10"))
+    translation_max_pages: int = int(_env("TRANSLATION_MAX_PAGES", "200"))
+    order_keep_days: int = int(_env("ORDER_KEEP_DAYS", "30"))
+    orders_max_mb: int = int(_env("ORDERS_MAX_MB", "60"))
+    admin_password_hash: str = _env("ADMIN_PASSWORD_HASH", "")
+    docs_dir: Path = Path(_env("DOCS_DIR", str(Path(__file__).resolve().parents[2] / "docs")))
 
     @property
     def max_upload_bytes(self) -> int:
@@ -40,6 +48,14 @@ class Settings:
     @property
     def shares_enabled(self) -> bool:
         return len(self.share_master_key) >= 40
+
+    @property
+    def admin_enabled(self) -> bool:
+        return self.shares_enabled and self.admin_password_hash.startswith("pbkdf2_sha256$")
+
+    @property
+    def orders_enabled(self) -> bool:
+        return self.admin_enabled
 
     @property
     def ai_enabled(self) -> bool:

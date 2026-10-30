@@ -149,10 +149,10 @@ struct SignatureSheet: View {
 
     @MainActor
     private func typedPNG() -> Data? {
-        let renderer = ImageRenderer(content: typedSignature.frame(height: 110).fixedSize(horizontal: true, vertical: false))
+        let renderer = ImageRenderer(content: typedSignature.frame(height: 110).fixedSize(horizontal: true, vertical: false)
+            .environment(\.colorScheme, .light))
         renderer.scale = 3
         renderer.isOpaque = false
-        renderer.colorScheme = .light
         return renderer.uiImage?.pngData()
     }
 }

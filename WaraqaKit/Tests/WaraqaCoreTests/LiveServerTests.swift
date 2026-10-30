@@ -52,6 +52,34 @@ final class LiveServerTests: XCTestCase {
         XCTAssertGreaterThan(data.count, 10_000)
     }
 
+    func testTranslationOrderIsCreatedAndFollowed() async throws {
+        let created = try await client().createTranslation(files: [part("english.pdf", as: "شهادة.pdf")], name: "سارة أحمد",
+                                                           phone: "0551234567", email: "", source: .en, target: .ar, notes: "")
+        XCTAssertEqual(created.order.state, .received)
+        XCTAssertEqual(created.order.priceSAR, TranslationPricing.total(pages: created.order.pages))
+        XCTAssertFalse(created.ownerToken.isEmpty)
+        let status = try await client(consent: false).translationStatus(id: created.order.id, ownerToken: created.ownerToken)
+        XCTAssertEqual(status.number, created.order.number)
+        do {
+            _ = try await client(consent: false).translationStatus(id: created.order.id, ownerToken: "wrong")
+            XCTFail("another token must not see the order")
+        } catch {}
+        do {
+            _ = try await client(consent: false).downloadTranslation(id: created.order.id, ownerToken: created.ownerToken, into: work)
+            XCTFail("nothing to download before delivery")
+        } catch {}
+    }
+
+    func testTranslationNeedsConsent() async throws {
+        do {
+            _ = try await client(consent: false).createTranslation(files: [part("english.pdf")], name: "س", phone: "0551234567",
+                                                                   email: "", source: .en, target: .ar, notes: "")
+            XCTFail("must not upload without consent")
+        } catch let error as WaraqaError {
+            XCTAssertEqual(error, .serverConsentRequired)
+        }
+    }
+
     func testPDFToWordReturnsDocx() async throws {
         let result = try await client().run(tool: .pdfToWord, files: [part("english.pdf")])
         XCTAssertEqual(result.fileName, "english.docx")

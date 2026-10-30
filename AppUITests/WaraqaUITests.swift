@@ -192,6 +192,40 @@ final class WaraqaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["تم بنجاح"].waitForExistence(timeout: 30), "the signed copy is produced")
     }
 
+    /// The translation order form counts pages and prices them (10 SAR a page). Nothing is sent:
+    /// the server side of orders is tested against a real server in WaraqaCore and the backend.
+    func testCertifiedTranslationOrderForm() {
+        let app = launch("ar", ["-WaraqaSampleFiles"])
+        let open = app.buttons["translation.open"]
+        XCTAssertTrue(open.waitForExistence(timeout: 15), "the translation card is on Home")
+        open.tap()
+        XCTAssertTrue(app.staticTexts["السعر: 10 ريال للصفحة."].waitForExistence(timeout: 10))
+        app.buttons["translation.new"].tap()
+        // Two generated 3-page PDFs → 6 pages → 60 SAR.
+        let price = app.staticTexts["translation.price"]
+        XCTAssertTrue(price.waitForExistence(timeout: 10))
+        XCTAssertEqual(price.label, "60 ريال")
+        type("سارة أحمد", into: app.textFields["translation.name"], app)
+        type("0551234567", into: app.textFields["translation.phone"], app)
+        let send = app.buttons["translation.send"]
+        reveal(send, in: app)
+        XCTAssertFalse(send.isEnabled, "needs the consent first")
+        let agree = app.switches["translation.agree"]
+        reveal(agree, in: app)
+        agree.tap()
+        if agree.value as? String == "0" { agree.switches.firstMatch.tap() }
+        reveal(send, in: app)
+        XCTAssertTrue(send.isEnabled)
+        screenshot("11-translation-order-ar")
+    }
+
+    func testToolsAskForPlusAfterTheTrial() {
+        let app = launch("ar", ["-WaraqaOpenTool", "merge", "-WaraqaTrialEnded"])
+        XCTAssertTrue(app.buttons["tool.subscribe"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.buttons["تنفيذ"].exists)
+        screenshot("12-trial-ended-ar")
+    }
+
     // MARK: Helpers
 
     private func type(_ text: String, into field: XCUIElement, _ app: XCUIApplication) {

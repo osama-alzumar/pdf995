@@ -362,6 +362,8 @@ public enum PlanRules {
     public static let monthlyAllowance = 30
     /// Pages included in one "document" for a pay-per-use credit.
     public static let pagesPerDocument = 20
+    /// Days the PDF tools are free from the first use; then they need Waraqa Plus.
+    public static let toolTrialDays = 3
 }
 
 public enum Entitlement: Equatable, Sendable, Codable {

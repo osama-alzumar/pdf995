@@ -155,3 +155,37 @@ final class QuotaStore: ObservableObject {
         return true
     }
 }
+
+/// Start of the free PDF-tools trial, kept in the Keychain so reinstalling doesn't restart it.
+@MainActor
+final class ToolTrialStore: ObservableObject {
+    static let shared = ToolTrialStore()
+    let trial: ToolTrial
+
+    private init() {
+        let service = "app.waraqa.trial"
+        if let data = Keychain.get(service: service, account: "tools-v1"),
+           let seconds = Double(String(decoding: data, as: UTF8.self)) {
+            trial = ToolTrial(started: Date(timeIntervalSince1970: seconds))
+        } else {
+            let now = Date()
+            try? Keychain.set(Data(String(now.timeIntervalSince1970).utf8), service: service, account: "tools-v1")
+            trial = ToolTrial(started: now)
+        }
+    }
+
+    func allowsTools(_ entitlement: Entitlement) -> Bool {
+        #if DEBUG
+        // UI tests: show the screen after the trial has ended.
+        if ProcessInfo.processInfo.arguments.contains("-WaraqaTrialEnded") { return entitlement != .free }
+        #endif
+        return trial.allowsTools(entitlement)
+    }
+
+    var daysLeft: Int {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-WaraqaTrialEnded") { return 0 }
+        #endif
+        return trial.daysLeft()
+    }
+}

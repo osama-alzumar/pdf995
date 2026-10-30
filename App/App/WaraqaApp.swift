@@ -77,7 +77,9 @@ struct RootView: View {
         .onAppear(perform: applyScreenshotLaunchArguments)
         .task {
             await PurchaseStore.shared.start()
+            await ServerService.shared.refresh()
             await SharesStore.shared.refresh()
+            await TranslationsStore.shared.refresh()
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
@@ -86,7 +88,10 @@ struct RootView: View {
                 VaultLock.shared.lock()
                 VaultStore.shared.closeOpenedFiles()
             case .active:
-                Task { await SharesStore.shared.refresh() }
+                Task {
+                    await SharesStore.shared.refresh()
+                    await TranslationsStore.shared.refresh()
+                }
             default:
                 break
             }
