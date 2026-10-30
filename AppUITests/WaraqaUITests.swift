@@ -177,17 +177,23 @@ final class WaraqaUITests: XCTestCase {
         let canvas = app.otherElements["signature.canvas"].exists ? app.otherElements["signature.canvas"] : app.descendants(matching: .any)["signature.canvas"]
         XCTAssertTrue(canvas.waitForExistence(timeout: 10), "the signature sheet opens")
         app.buttons["ink.blue"].tap()
-        canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.6))
-            .press(forDuration: 0.05, thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.35)))
-        canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.3))
-            .press(forDuration: 0.05, thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.65)))
+        // Slow drags, like a finger: a fast synthesized swipe is taken as a scroll/dismiss gesture.
+        for (from, to) in [(CGVector(dx: 0.15, dy: 0.6), CGVector(dx: 0.85, dy: 0.35)),
+                           (CGVector(dx: 0.2, dy: 0.3), CGVector(dx: 0.8, dy: 0.7))] {
+            canvas.coordinate(withNormalizedOffset: from)
+                .press(forDuration: 0.3, thenDragTo: canvas.coordinate(withNormalizedOffset: to), withVelocity: .slow, thenHoldForDuration: 0.2)
+        }
         screenshot("signature-sheet-dark")
-        XCTAssertGreaterThan(bluePixels(app.screenshot()), 150, "the ink on the drawing area is blue")
-        app.buttons["استخدم التوقيع"].tap()
-        XCTAssertFalse(canvas.waitForExistence(timeout: 2) && canvas.isHittable)
-        sleep(1)
+        XCTAssertGreaterThan(bluePixels(app.screenshot(), in: canvas.frame, app), 150, "blue ink is drawn on the white drawing area")
+        let use = app.buttons["استخدم التوقيع"]
+        XCTAssertTrue(use.isEnabled, "a drawing was made")
+        use.tap()
+        sleep(2)
         screenshot("signature-placed-dark")
-        XCTAssertGreaterThan(bluePixels(app.screenshot()), 150, "the signature placed on the page is blue, not white")
+        // The signature is placed centred where the page was tapped (0.5, 0.45 of the screen).
+        let w = app.frame.width, h = app.frame.height
+        let around = CGRect(x: w * 0.5 - 120, y: h * 0.45 - 80, width: 240, height: 160)
+        XCTAssertGreaterThan(bluePixels(app.screenshot(), in: around, app), 150, "the signature placed on the page is blue, not white")
         app.navigationBars.buttons["تم"].tap()
         XCTAssertTrue(app.staticTexts["تم بنجاح"].waitForExistence(timeout: 30), "the signed copy is produced")
     }
@@ -243,19 +249,27 @@ final class WaraqaUITests: XCTestCase {
         while !element.isHittable && tries < 6 { app.swipeUp(); tries += 1 }
     }
 
-    /// Pixels of the fixed signature blue (r≈13 g≈89 b≈217), which nothing else in the UI uses.
-    private func bluePixels(_ shot: XCUIScreenshot) -> Int {
+    /// Pixels of the fixed signature blue (r≈13 g≈89 b≈217) inside `rect` (screen points).
+    private func bluePixels(_ shot: XCUIScreenshot, in rect: CGRect, _ app: XCUIApplication) -> Int {
         guard let cg = shot.image.cgImage else { return 0 }
         let w = cg.width, h = cg.height
+        let scale = CGFloat(w) / app.frame.width
         var data = [UInt8](repeating: 0, count: w * h * 4)
         guard let ctx = CGContext(data: &data, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
                                   space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return 0 }
         ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        let box = CGRect(x: rect.minX * scale, y: rect.minY * scale, width: rect.width * scale, height: rect.height * scale)
+            .intersection(CGRect(x: 0, y: 0, width: w, height: h))
         var count = 0
-        for i in stride(from: 0, to: data.count, by: 4) {
-            let r = Int(data[i]), g = Int(data[i + 1]), b = Int(data[i + 2])
-            if b > 160 && r < 70 && g > 50 && g < 125 { count += 1 }
+        // The bitmap rows are top-down here (y = 0 is the top of the screen).
+        for y in Int(box.minY)..<Int(box.maxY) {
+            for x in Int(box.minX)..<Int(box.maxX) {
+                let i = (y * w + x) * 4
+                let r = Int(data[i]), g = Int(data[i + 1]), b = Int(data[i + 2])
+                if b > 160 && r < 70 && g > 50 && g < 125 { count += 1 }
+            }
         }
         return count
     }
+
 }

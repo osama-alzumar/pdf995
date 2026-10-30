@@ -33,10 +33,26 @@ enum DebugSamples {
         }
     }
 
+    /// A real 3-page PDF with selectable Arabic text.
     private static func pdf(_ name: String, body: String, in folder: URL) -> PickedFile? {
         let url = folder.appendingPathComponent("\(name).pdf")
-        let pages = (1...3).map { "\(name) — صفحة \($0)\n\n\(body)" }
-        guard (try? PDFEngine.textToPDF(pages: pages, title: name, rightToLeft: true, to: url)) != nil else { return nil }
+        let bounds = CGRect(x: 0, y: 0, width: 595, height: 842)
+        let style = NSMutableParagraphStyle()
+        style.alignment = .right
+        style.baseWritingDirection = .rightToLeft
+        let attributes: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 22), .foregroundColor: UIColor.black,
+                                                         .paragraphStyle: style]
+        do {
+            try UIGraphicsPDFRenderer(bounds: bounds).writePDF(to: url) { context in
+                for page in 1...3 {
+                    context.beginPage()
+                    ("\(name) — صفحة \(page)\n\n\(body)" as NSString)
+                        .draw(in: bounds.insetBy(dx: 50, dy: 60), withAttributes: attributes)
+                }
+            }
+        } catch {
+            return nil
+        }
         return PickedFile(url: url, name: url.lastPathComponent)
     }
 
